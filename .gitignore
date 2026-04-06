@@ -1,0 +1,20 @@
+# Excelファイル（大容量のためGitHubにはアップしない）
+*.xlsx
+*.xls
+*.csv
+
+# 生成されるビューワー（ローカルで再生成するため）
+viewer.html
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# VSCode
+.vscode/
