@@ -48,13 +48,24 @@ button{cursor:pointer;font-family:inherit}
 .fs:focus{border-color:var(--pri)}
 .sb{font-size:12px;color:var(--muted);background:var(--surface2);padding:6px 10px;border-radius:var(--r8);white-space:nowrap}
 .sb strong{color:var(--pri);font-size:14px}
+/* フィルタークリアボタン */
+.clr-btn{padding:6px 12px;border:1px solid var(--border);border-radius:var(--r8);background:var(--surface);color:var(--muted);font-size:12px;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;display:none}
+.clr-btn.vis{display:inline-flex;align-items:center;gap:4px}
+.clr-btn:hover{background:var(--err-bg);border-color:var(--err);color:var(--err)}
 .tw{max-width:1640px;margin:12px auto 24px;padding:0 20px}
 .tb{background:var(--surface);border-radius:var(--r12);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh1)}
 .ts{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-thead th{background:var(--surface2);padding:9px 12px;text-align:left;font-weight:600;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .1s}
-thead th:hover{background:var(--pri-l);color:var(--pri)}
-thead th.sorted{color:var(--pri)}
+thead th{background:var(--surface2);padding:0;text-align:left;font-weight:600;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border);user-select:none;position:relative}
+thead th .th-in{display:flex;align-items:center;gap:2px;padding:9px 12px;cursor:pointer;transition:background .1s}
+thead th .th-in:hover{background:var(--pri-l);color:var(--pri)}
+thead th.sorted .th-in{color:var(--pri)}
+thead th.col-filtered .th-in{color:var(--pri)}
+thead th.col-filtered .th-in::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pri);margin-left:2px}
+/* フィルターボタン */
+.flt-btn{flex-shrink:0;background:none;border:none;padding:2px 4px;border-radius:var(--r4);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .1s;font-size:10px;line-height:1;margin-left:auto}
+.flt-btn:hover{background:var(--pri-l);color:var(--pri)}
+.flt-btn.active{color:var(--pri);font-weight:bold}
 tbody tr{border-bottom:1px solid var(--div);cursor:pointer;transition:background .08s}
 tbody tr:hover{background:var(--pri-l)}
 tbody tr:last-child{border-bottom:none}
@@ -74,6 +85,53 @@ td{padding:8px 12px;vertical-align:top}
 .pb:disabled{opacity:.4;cursor:default;pointer-events:none}
 .ppw{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .pps{padding:4px 6px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font)}
+/* 列フィルターポップアップ */
+.col-flt-pop{
+  display:none;position:fixed;z-index:300;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r12);box-shadow:var(--sh3);
+  width:300px;max-height:520px;overflow:hidden;
+  display:none;flex-direction:column;
+  animation:popin .15s cubic-bezier(.16,1,.3,1);
+}
+.col-flt-pop.open{display:flex;}
+@keyframes popin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.cfp-hdr{padding:12px 14px 8px;border-bottom:1px solid var(--div)}
+.cfp-hdr h3{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px}
+.cfp-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r8);overflow:hidden;}
+.cfp-tab{flex:1;padding:5px 8px;background:var(--surface);border:none;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .1s;font-family:var(--font)}
+.cfp-tab.active{background:var(--pri);color:#fff}
+.cfp-body{overflow-y:auto;flex:1}
+/* タブ: テキストフィルター */
+.cfp-text{padding:12px 14px}
+.cfp-row{margin-bottom:10px}
+.cfp-row label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.cfp-row select,.cfp-row input{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);outline:none;transition:border-color .15s}
+.cfp-row select:focus,.cfp-row input:focus{border-color:var(--pri)}
+.cfp-logic{display:flex;gap:6px;align-items:center;margin:8px 0}
+.cfp-logic span{font-size:11px;color:var(--muted)}
+.cfp-logic-btn{flex:1;padding:4px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .1s;font-family:var(--font)}
+.cfp-logic-btn.active{background:var(--pri-l);border-color:var(--pri);color:var(--pri)}
+/* タブ: 値リスト */
+.cfp-list{padding:10px 14px}
+.cfp-list-search{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);outline:none;margin-bottom:8px;transition:border-color .15s}
+.cfp-list-search:focus{border-color:var(--pri)}
+.cfp-list-ctrl{display:flex;gap:6px;margin-bottom:6px}
+.cfp-list-ctrl button{font-size:11px;color:var(--pri);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;font-family:var(--font)}
+.cfp-vals{max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r4)}
+.cfp-val-item{display:flex;align-items:center;gap:7px;padding:5px 8px;cursor:pointer;transition:background .08s;font-size:12px}
+.cfp-val-item:hover{background:var(--surface2)}
+.cfp-val-item input[type=checkbox]{accent-color:var(--pri);cursor:pointer;flex-shrink:0}
+.cfp-val-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cfp-ftr{padding:10px 14px;border-top:1px solid var(--div);display:flex;gap:6px;justify-content:flex-end}
+.cfp-ftr button{padding:6px 14px;border-radius:var(--r8);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:var(--font);border:1px solid transparent}
+.cfp-ok{background:var(--pri);color:#fff;border-color:var(--pri)}
+.cfp-ok:hover{background:var(--pri-h)}
+.cfp-cl{background:none;border-color:var(--border);color:var(--muted)}
+.cfp-cl:hover{background:var(--surface2);color:var(--text)}
+.cfp-rst{background:none;border-color:var(--err);color:var(--err);margin-right:auto}
+.cfp-rst:hover{background:var(--err-bg)}
+/* モーダル */
 .ov{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px;animation:fi .15s ease}
 .ov.act{display:flex}
 @keyframes fi{from{opacity:0}to{opacity:1}}
@@ -121,6 +179,7 @@ td{padding:8px 12px;vertical-align:top}
   </div>
   <select class="fs" id="kFlt"><option value="">すべての食品区分</option>{{KUBUN_OPTIONS}}</select>
   <select class="fs" id="sFlt"><option value="">すべての販売状況</option>{{STATUS_OPTIONS}}</select>
+  <button class="clr-btn" id="clrColFlt" title="列フィルターをすべてクリア">✕ 列フィルターをクリア</button>
   <div class="sb" id="cnt"><span class="spin"></span></div>
 </div>
 <div class="tw">
@@ -134,6 +193,71 @@ td{padding:8px 12px;vertical-align:top}
     <div class="pag" id="pag"></div>
   </div>
 </div>
+
+<!-- 列フィルターポップアップ (共有) -->
+<div class="col-flt-pop" id="colFltPop">
+  <div class="cfp-hdr">
+    <h3 id="cfpTitle">列フィルター</h3>
+    <div class="cfp-tabs">
+      <button class="cfp-tab active" id="cfpTabText" onclick="switchCfpTab('text')">テキストフィルター</button>
+      <button class="cfp-tab" id="cfpTabList" onclick="switchCfpTab('list')">値で絞り込み</button>
+    </div>
+  </div>
+  <div class="cfp-body" id="cfpBody">
+    <!-- テキストフィルタータブ -->
+    <div id="cfpTextPane" class="cfp-text">
+      <div class="cfp-row">
+        <label>条件1</label>
+        <select id="cfpOp1">
+          <option value="contains">次の値を含む</option>
+          <option value="notcontains">次の値を含まない</option>
+          <option value="equals">次の値と等しい</option>
+          <option value="notequals">次の値と等しくない</option>
+          <option value="startswith">次の値で始まる</option>
+          <option value="endswith">次の値で終わる</option>
+          <option value="blank">空白</option>
+          <option value="notblank">空白でない</option>
+        </select>
+        <input type="text" id="cfpVal1" placeholder="値を入力" style="margin-top:5px">
+      </div>
+      <div class="cfp-logic">
+        <button class="cfp-logic-btn active" id="cfpAnd" onclick="setLogic('AND')">AND（かつ）</button>
+        <button class="cfp-logic-btn" id="cfpOr" onclick="setLogic('OR')">OR（または）</button>
+      </div>
+      <div class="cfp-row">
+        <label>条件2（任意）</label>
+        <select id="cfpOp2">
+          <option value="">（条件なし）</option>
+          <option value="contains">次の値を含む</option>
+          <option value="notcontains">次の値を含まない</option>
+          <option value="equals">次の値と等しい</option>
+          <option value="notequals">次の値と等しくない</option>
+          <option value="startswith">次の値で始まる</option>
+          <option value="endswith">次の値で終わる</option>
+          <option value="blank">空白</option>
+          <option value="notblank">空白でない</option>
+        </select>
+        <input type="text" id="cfpVal2" placeholder="値を入力（任意）" style="margin-top:5px">
+      </div>
+    </div>
+    <!-- 値リストタブ -->
+    <div id="cfpListPane" class="cfp-list" style="display:none">
+      <input class="cfp-list-search" type="text" id="cfpListSrch" placeholder="値を検索…">
+      <div class="cfp-list-ctrl">
+        <button onclick="selectAllVals(true)">すべて選択</button>
+        <button onclick="selectAllVals(false)">すべて解除</button>
+      </div>
+      <div class="cfp-vals" id="cfpVals"></div>
+    </div>
+  </div>
+  <div class="cfp-ftr">
+    <button class="cfp-ftr-btn cfp-rst" onclick="resetColFlt()">リセット</button>
+    <button class="cfp-ftr-btn cfp-cl" onclick="closeCfp()">キャンセル</button>
+    <button class="cfp-ftr-btn cfp-ok" onclick="applyColFlt()">適用</button>
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="mT">
   <div class="modal">
     <div class="mh">
@@ -150,6 +274,10 @@ const TC={{TABLE_COLS_JSON}};
 const KC="{{KUBUN_LABEL}}";
 const SC="{{STATUS_LABEL}}";
 let fil=D.slice(),pg=1,pp=50,sc=null,sa=true;
+// 列フィルター状態 { colName: { type:'text'|'list', logic:'AND'|'OR', op1, val1, op2, val2, selected:Set } }
+const colFilters={};
+let cfpCol=null, cfpTab='text', cfpLogic='AND';
+
 (function(){
   const btn=document.getElementById('themeBtn'),h=document.documentElement;
   let t;
@@ -158,17 +286,200 @@ let fil=D.slice(),pg=1,pp=50,sc=null,sa=true;
   h.setAttribute('data-theme',t);btn.textContent=t==='dark'?'☀️':'🌙';
   btn.onclick=()=>{t=t==='dark'?'light':'dark';h.setAttribute('data-theme',t);try{localStorage.setItem('kvt',t);}catch(e){}btn.textContent=t==='dark'?'☀️':'🌙';};
 })();
+
 function buildH(){
   const tr=document.createElement('tr');
-  TC.forEach((c,i)=>{const th=document.createElement('th');th.innerHTML=c+' <span id="si'+i+'" style="opacity:.4">↕</span>';th.onclick=()=>srtBy(c,i);tr.appendChild(th);});
+  TC.forEach((c,i)=>{
+    const th=document.createElement('th');
+    const inner=document.createElement('div');
+    inner.className='th-in';
+    inner.innerHTML=c+' <span id="si'+i+'" style="opacity:.4;flex-shrink:0">↕</span>';
+    inner.onclick=(e)=>{
+      if(e.target.classList.contains('flt-btn'))return;
+      srtBy(c,i);
+    };
+    const fb=document.createElement('button');
+    fb.className='flt-btn';
+    fb.title='列フィルター: '+c;
+    fb.innerHTML='▼';
+    fb.setAttribute('data-col',c);
+    fb.onclick=(e)=>{e.stopPropagation();openCfp(c,fb);};
+    inner.appendChild(fb);
+    th.appendChild(inner);
+    th.id='th-'+i;
+    tr.appendChild(th);
+  });
   document.getElementById('tH').appendChild(tr);
 }
+
 function srtBy(c,i){
   if(sc===c)sa=!sa;else{sc=c;sa=true;}
   fil.sort((a,b)=>{const va=a.t[c]||'',vb=b.t[c]||'';return sa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
   document.querySelectorAll('#tH th').forEach((th,j)=>{th.classList.toggle('sorted',TC[j]===c);document.getElementById('si'+j).textContent=TC[j]===c?(sa?'↑':'↓'):'↕';document.getElementById('si'+j).style.opacity=TC[j]===c?'1':'.4';});
   pg=1;render();
 }
+
+/* ===== 列フィルターポップアップ ===== */
+function openCfp(col, anchorEl){
+  cfpCol=col;
+  document.getElementById('cfpTitle').textContent='「'+col+'」フィルター';
+  // 既存設定があれば復元
+  const cf=colFilters[col];
+  if(cf){
+    if(cf.type==='list'){
+      switchCfpTab('list');
+    } else {
+      switchCfpTab('text');
+      document.getElementById('cfpOp1').value=cf.op1||'contains';
+      document.getElementById('cfpVal1').value=cf.val1||'';
+      document.getElementById('cfpOp2').value=cf.op2||'';
+      document.getElementById('cfpVal2').value=cf.val2||'';
+      setLogic(cf.logic||'AND');
+    }
+  } else {
+    switchCfpTab('text');
+    document.getElementById('cfpOp1').value='contains';
+    document.getElementById('cfpVal1').value='';
+    document.getElementById('cfpOp2').value='';
+    document.getElementById('cfpVal2').value='';
+    setLogic('AND');
+  }
+  // 値リスト生成
+  buildValList(col);
+  // ポップアップ位置
+  const pop=document.getElementById('colFltPop');
+  pop.classList.add('open');
+  const rect=anchorEl.getBoundingClientRect();
+  let left=rect.left, top=rect.bottom+4;
+  if(left+310>window.innerWidth)left=window.innerWidth-314;
+  if(top+540>window.innerHeight)top=rect.top-544;
+  pop.style.left=Math.max(4,left)+'px';
+  pop.style.top=Math.max(4,top)+'px';
+}
+function closeCfp(){
+  document.getElementById('colFltPop').classList.remove('open');
+  cfpCol=null;
+}
+function switchCfpTab(tab){
+  cfpTab=tab;
+  document.getElementById('cfpTabText').classList.toggle('active',tab==='text');
+  document.getElementById('cfpTabList').classList.toggle('active',tab==='list');
+  document.getElementById('cfpTextPane').style.display=tab==='text'?'block':'none';
+  document.getElementById('cfpListPane').style.display=tab==='list'?'block':'none';
+}
+function setLogic(l){
+  cfpLogic=l;
+  document.getElementById('cfpAnd').classList.toggle('active',l==='AND');
+  document.getElementById('cfpOr').classList.toggle('active',l==='OR');
+}
+function buildValList(col){
+  const srch=document.getElementById('cfpListSrch');
+  srch.value='';
+  const cf=colFilters[col];
+  const selected=cf&&cf.type==='list'?cf.selected:null;
+  const vals=[...new Set(D.map(r=>r.t[col]||''))].sort((a,b)=>a.localeCompare(b,'ja'));
+  renderValList(col,vals,selected);
+  srch.oninput=()=>{
+    const q=srch.value.toLowerCase();
+    renderValList(col,vals.filter(v=>v.toLowerCase().includes(q)),selected);
+  };
+}
+function renderValList(col,vals,selected){
+  const container=document.getElementById('cfpVals');
+  container.innerHTML='';
+  vals.forEach(v=>{
+    const item=document.createElement('label');
+    item.className='cfp-val-item';
+    const cb=document.createElement('input');
+    cb.type='checkbox';
+    cb.value=v;
+    cb.checked=selected?selected.has(v):true;
+    const sp=document.createElement('span');
+    sp.textContent=v||'（空白）';
+    sp.title=v;
+    item.appendChild(cb);item.appendChild(sp);
+    container.appendChild(item);
+  });
+}
+function selectAllVals(all){
+  document.querySelectorAll('#cfpVals input[type=checkbox]').forEach(cb=>cb.checked=all);
+}
+function applyColFlt(){
+  if(!cfpCol)return;
+  if(cfpTab==='list'){
+    const sel=new Set();
+    document.querySelectorAll('#cfpVals input[type=checkbox]').forEach(cb=>{
+      if(cb.checked)sel.add(cb.value);
+    });
+    const allVals=[...new Set(D.map(r=>r.t[cfpCol]||''))];
+    if(sel.size===allVals.length){
+      // 全選択 = フィルターなし
+      delete colFilters[cfpCol];
+    } else {
+      colFilters[cfpCol]={type:'list',selected:sel};
+    }
+  } else {
+    const op1=document.getElementById('cfpOp1').value;
+    const val1=document.getElementById('cfpVal1').value.trim();
+    const op2=document.getElementById('cfpOp2').value;
+    const val2=document.getElementById('cfpVal2').value.trim();
+    if(!op1||(op1!=='blank'&&op1!=='notblank'&&!val1)){
+      delete colFilters[cfpCol];
+    } else {
+      colFilters[cfpCol]={type:'text',logic:cfpLogic,op1,val1,op2,val2};
+    }
+  }
+  updateColFltUI();
+  closeCfp();
+  applyF();
+}
+function resetColFlt(){
+  if(cfpCol){
+    delete colFilters[cfpCol];
+    updateColFltUI();
+    closeCfp();
+    applyF();
+  }
+}
+function updateColFltUI(){
+  // ヘッダー列のハイライト更新
+  TC.forEach((c,i)=>{
+    const th=document.querySelector('#th-'+i);
+    if(th){
+      th.classList.toggle('col-filtered',!!colFilters[c]);
+      const fb=th.querySelector('.flt-btn');
+      if(fb)fb.classList.toggle('active',!!colFilters[c]);
+    }
+  });
+  // クリアボタン表示
+  const hasAny=Object.keys(colFilters).length>0;
+  document.getElementById('clrColFlt').classList.toggle('vis',hasAny);
+}
+function matchOp(op,cellVal,query){
+  const c=cellVal.toLowerCase(),q=query.toLowerCase();
+  switch(op){
+    case 'contains': return c.includes(q);
+    case 'notcontains': return !c.includes(q);
+    case 'equals': return c===q;
+    case 'notequals': return c!==q;
+    case 'startswith': return c.startsWith(q);
+    case 'endswith': return c.endsWith(q);
+    case 'blank': return cellVal.trim()==='';
+    case 'notblank': return cellVal.trim()!=='';
+    default: return true;
+  }
+}
+function matchColFilter(cf, cellVal){
+  if(!cf)return true;
+  if(cf.type==='list')return cf.selected.has(cellVal);
+  // text type
+  const v=cellVal||'';
+  const r1=(cf.op1==='blank'||cf.op1==='notblank')?matchOp(cf.op1,v,''):matchOp(cf.op1,v,cf.val1);
+  if(!cf.op2)return r1;
+  const r2=(cf.op2==='blank'||cf.op2==='notblank')?matchOp(cf.op2,v,''):matchOp(cf.op2,v,cf.val2);
+  return cf.logic==='AND'?r1&&r2:r1||r2;
+}
+
 function applyF(){
   const q=document.getElementById('srch').value.toLowerCase().trim();
   const kb=document.getElementById('kFlt').value;
@@ -177,6 +488,10 @@ function applyF(){
     if(q&&!r.s.includes(q))return false;
     if(kb&&r.t[KC]!==kb)return false;
     if(st&&r.t[SC]!==st)return false;
+    // 列フィルター適用
+    for(const [col,cf] of Object.entries(colFilters)){
+      if(!matchColFilter(cf,r.t[col]||''))return false;
+    }
     return true;
   });
   if(sc)fil.sort((a,b)=>{const va=a.t[sc]||'',vb=b.t[sc]||'';return sa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
@@ -265,7 +580,20 @@ function closeM(){document.getElementById('ov').classList.remove('act');}
 document.getElementById('mC').onclick=closeM;
 document.getElementById('mCB').onclick=closeM;
 document.getElementById('ov').onclick=e=>{if(e.target===e.currentTarget)closeM();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();closeCfp();}});
+// ポップアップ外クリックで閉じる
+document.addEventListener('mousedown',e=>{
+  const pop=document.getElementById('colFltPop');
+  if(pop.classList.contains('open')&&!pop.contains(e.target)&&!e.target.classList.contains('flt-btn')){
+    closeCfp();
+  }
+});
+// クリアボタン
+document.getElementById('clrColFlt').onclick=()=>{
+  Object.keys(colFilters).forEach(k=>delete colFilters[k]);
+  updateColFltUI();
+  applyF();
+};
 let st;
 document.getElementById('srch').addEventListener('input',()=>{clearTimeout(st);st=setTimeout(applyF,200);});
 document.getElementById('kFlt').onchange=applyF;
