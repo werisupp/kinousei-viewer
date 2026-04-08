@@ -19,9 +19,10 @@ import os
 import sys
 import glob
 import hashlib
+import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Optional  # Python 3.9 対応
+from typing import Optional, List  # Python 3.9 対応
 
 # ライブラリ確認 ----------------------------------------------------------------
 def _require(pkg, install_hint):
@@ -37,7 +38,7 @@ _require("pandas",     "pip install pandas openpyxl")
 _require("openpyxl",   "pip install openpyxl")
 
 import pandas as pd  # noqa: E402
-from playwright.sync_api import sync_playwright  # noqa: E402
+from playwright.sync_api import sync_playwright, Page, BrowserContext  # noqa: E402
 
 # パス設定 ---------------------------------------------------------------------
 SCRIPT_DIR   = Path(__file__).resolve().parent          # fetch_csv/
@@ -47,28 +48,95 @@ TARGET_URL   = "https://www.fld.caa.go.jp/caaks/s/cssc01/"
 BUTTON_TEXT  = "前日までの全届出の全項目出力"
 KEY_COL      = "届出番号"                                # マスタ更新のキー列
 
+# ダウンロード完了を待つ最大秒数（全ファイル合計）
+DOWNLOAD_TIMEOUT = 300_000  # 300秒
+
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # ===========================================================================
-# Step 1: PlaywrightでCSVダウンロード
+# Step 1: PlaywrightでCSVダウンロード（複数ファイル対応）
 # ===========================================================================
+def _save_download(download, label=""):
+    # type: (...) -> Optional[Path]
+    """download オブジェクトを downloads/ に保存し、パスを返す。"""
+    suggested = download.suggested_filename or "kinousei_{}.csv".format(
+        datetime.now().strftime("%Y%m%d_%H%M%S")
+    )
+    dest = DOWNLOAD_DIR / suggested
+    tmp  = DOWNLOAD_DIR / ("_tmp_" + suggested)
+    download.save_as(str(tmp))
+
+    if dest.exists():
+        if _file_hash(tmp) == _file_hash(dest):
+            print("  [{}] 既に同じ内容のファイルが存在します: {} (スキップ)".format(label, dest.name))
+            tmp.unlink()
+            return dest
+        else:
+            ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
+            dest = DOWNLOAD_DIR / "{}_{}{}".format(dest.stem, ts, dest.suffix)
+
+    tmp.rename(dest)
+    print("  [{}] 保存しました: {}".format(label, dest.name))
+    return dest
+
+
+def _handle_page_downloads(page, saved_paths, lock, label="popup"):
+    # type: (Page, list, threading.Lock, str) -> None
+    """
+    ページで発生するダウンロードをすべて収集する。
+    ポップアップページ用のハンドラとして別スレッドで呼ぶ。
+    """
+    try:
+        with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as dl_info:
+            pass  # ダウンロードが始まるのを待つだけ
+        path = _save_download(dl_info.value, label=label)
+        if path:
+            with lock:
+                saved_paths.append(path)
+    except Exception as e:
+        print("  [{}] ダウンロード待受エラー: {}".format(label, e))
+
+
 def download_csv():
-    # type: () -> Optional[Path]
+    # type: () -> List[Path]
     """
     CAA届出情報DBページにアクセスし、
     「前日までの全届出の全項目出力(CSV出力)」ボタンを押して
     CSVファイルをダウンロードする。
-    保存したファイルのパスを返す。
+    ・メインページのダウンロード
+    ・ポップアップ（新しいウィンドウ）経由のダウンロード
+    の両方を捕捉する。
+    保存したファイルのパスのリストを返す。
     """
     print("[1/3] ページにアクセスしてCSVをダウンロードします...")
     print("  URL: {}".format(TARGET_URL))
 
-    saved_path = None  # type: Optional[Path]
+    saved_paths = []   # type: List[Path]
+    lock = threading.Lock()
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
-        context = browser.new_context(accept_downloads=True)
-        page    = context.new_page()
+        context = browser.new_context(
+            accept_downloads=True,
+            # ポップアップをブロックしない（デフォルトは許可）
+        )
+        page = context.new_page()
+
+        # ポップアップ（新しいページ）が開かれたときのハンドラを登録
+        popup_threads = []  # type: List[threading.Thread]
+
+        def on_page(popup):
+            # type: (Page) -> None
+            popup.set_default_timeout(DOWNLOAD_TIMEOUT)
+            t = threading.Thread(
+                target=_handle_page_downloads,
+                args=(popup, saved_paths, lock, "popup"),
+                daemon=True,
+            )
+            popup_threads.append(t)
+            t.start()
+
+        context.on("page", on_page)
 
         page.goto(TARGET_URL, timeout=60_000)
         page.wait_for_load_state("networkidle", timeout=30_000)
@@ -78,46 +146,46 @@ def download_csv():
         if not btn:
             print("ERROR: ボタン '{}' が見つかりません。".format(BUTTON_TEXT))
             browser.close()
-            return None
+            return []
 
         print("  ボタン発見: '{}' → クリック".format(btn.inner_text().strip()))
 
-        with page.expect_download(timeout=120_000) as dl_info:
+        # メインページでもダウンロードが発生する可能性があるため両方待受
+        try:
+            with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as dl_info:
+                btn.click()
+            path = _save_download(dl_info.value, label="main")
+            if path:
+                saved_paths.append(path)
+        except Exception:
+            # メインページではダウンロードが発生せずポップアップのみの場合
             btn.click()
 
-        download = dl_info.value
-        suggested = download.suggested_filename or "kinousei_{}.csv".format(
-            datetime.now().strftime("%Y%m%d_%H%M%S")
-        )
+        # ポップアップスレッドがすべて完了するまで待つ
+        # （サイトによってはポップアップが複数開くため少し余裕を持って待機）
+        for t in popup_threads:
+            t.join(timeout=DOWNLOAD_TIMEOUT / 1000)
 
-        dest = DOWNLOAD_DIR / suggested
-        # 同名ファイルが既にある場合はハッシュでスキップ判定するため、一旦一時保存
-        tmp  = DOWNLOAD_DIR / ("_tmp_" + suggested)
-        download.save_as(str(tmp))
-
-        # 同内容のファイルがすでに存在するか確認
-        if dest.exists():
-            if _file_hash(tmp) == _file_hash(dest):
-                print("  既に同じ内容のファイルが存在します: {} (スキップ)".format(dest.name))
-                tmp.unlink()
-                saved_path = dest
-            else:
-                # 異なる内容 → タイムスタンプ付きで保存
-                ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
-                stem = dest.stem
-                suf  = dest.suffix
-                dest = DOWNLOAD_DIR / "{}_{}{}".format(stem, ts, suf)
-                tmp.rename(dest)
-                print("  保存しました: {}".format(dest.name))
-                saved_path = dest
-        else:
-            tmp.rename(dest)
-            print("  保存しました: {}".format(dest.name))
-            saved_path = dest
+        # ポップアップが開かれた後に追加で発生するダウンロードも待つ
+        # （全ポップアップのダウンロードが完了するまで最大30秒追加待機）
+        import time
+        wait_extra = 30
+        prev_count = -1
+        elapsed = 0
+        while elapsed < wait_extra:
+            time.sleep(2)
+            elapsed += 2
+            with lock:
+                current_count = len(saved_paths)
+            if current_count == prev_count and current_count > 0:
+                # カウントが変化しなくなったら完了とみなす
+                break
+            prev_count = current_count
 
         browser.close()
 
-    return saved_path
+    print("  合計 {} ファイルをダウンロードしました。".format(len(saved_paths)))
+    return saved_paths
 
 
 def _file_hash(path):
@@ -281,9 +349,9 @@ def main():
     print("  実行日時: {}".format(datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")))
     print("=" * 60)
 
-    # Step 1: CSVダウンロード
-    saved = download_csv()
-    if saved is None:
+    # Step 1: CSVダウンロード（複数ファイル対応）
+    saved_list = download_csv()
+    if not saved_list:
         print("CSV のダウンロードに失敗しました。処理を中断します。")
         sys.exit(1)
 
