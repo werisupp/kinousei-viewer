@@ -12,32 +12,30 @@ fetch_csv.py
 
 使い方:
   pip install requests playwright openpyxl pandas
-  playwright install chromium
-  python fetch_csv/fetch_csv.py
+  python3 -m playwright install chromium
+  python3 fetch_csv/fetch_csv.py
 """
 import os
 import sys
 import glob
-import time
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from typing import Optional  # Python 3.9 対応
 
 # ライブラリ確認 ----------------------------------------------------------------
 def _require(pkg, install_hint):
     try:
         __import__(pkg)
     except ImportError:
-        print(f"ERROR: {pkg} がありません。")
-        print(f"  {install_hint}")
+        print("ERROR: {} がありません。".format(pkg))
+        print("  {}".format(install_hint))
         sys.exit(1)
 
-_require("requests",   "pip install requests")
-_require("playwright", "pip install playwright && playwright install chromium")
+_require("playwright", "pip install playwright && python3 -m playwright install chromium")
 _require("pandas",     "pip install pandas openpyxl")
 _require("openpyxl",   "pip install openpyxl")
 
-import requests  # noqa: E402
 import pandas as pd  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
@@ -54,7 +52,8 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ===========================================================================
 # Step 1: PlaywrightでCSVダウンロード
 # ===========================================================================
-def download_csv() -> Path | None:
+def download_csv():
+    # type: () -> Optional[Path]
     """
     CAA届出情報DBページにアクセスし、
     「前日までの全届出の全項目出力(CSV出力)」ボタンを押して
@@ -62,9 +61,9 @@ def download_csv() -> Path | None:
     保存したファイルのパスを返す。
     """
     print("[1/3] ページにアクセスしてCSVをダウンロードします...")
-    print(f"  URL: {TARGET_URL}")
+    print("  URL: {}".format(TARGET_URL))
 
-    saved_path: Path | None = None
+    saved_path = None  # type: Optional[Path]
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
@@ -77,17 +76,19 @@ def download_csv() -> Path | None:
         # ボタンを探す（テキストに「前日までの全届出の全項目出力」を含む要素）
         btn = page.get_by_text(BUTTON_TEXT, exact=False).first
         if not btn:
-            print(f"ERROR: ボタン '{BUTTON_TEXT}' が見つかりません。")
+            print("ERROR: ボタン '{}' が見つかりません。".format(BUTTON_TEXT))
             browser.close()
             return None
 
-        print(f"  ボタン発見: '{btn.inner_text().strip()}' → クリック")
+        print("  ボタン発見: '{}' → クリック".format(btn.inner_text().strip()))
 
         with page.expect_download(timeout=120_000) as dl_info:
             btn.click()
 
         download = dl_info.value
-        suggested = download.suggested_filename or f"kinousei_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        suggested = download.suggested_filename or "kinousei_{}.csv".format(
+            datetime.now().strftime("%Y%m%d_%H%M%S")
+        )
 
         dest = DOWNLOAD_DIR / suggested
         # 同名ファイルが既にある場合はハッシュでスキップ判定するため、一旦一時保存
@@ -97,7 +98,7 @@ def download_csv() -> Path | None:
         # 同内容のファイルがすでに存在するか確認
         if dest.exists():
             if _file_hash(tmp) == _file_hash(dest):
-                print(f"  既に同じ内容のファイルが存在します: {dest.name} (スキップ)")
+                print("  既に同じ内容のファイルが存在します: {} (スキップ)".format(dest.name))
                 tmp.unlink()
                 saved_path = dest
             else:
@@ -105,13 +106,13 @@ def download_csv() -> Path | None:
                 ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
                 stem = dest.stem
                 suf  = dest.suffix
-                dest = DOWNLOAD_DIR / f"{stem}_{ts}{suf}"
+                dest = DOWNLOAD_DIR / "{}_{}{}".format(stem, ts, suf)
                 tmp.rename(dest)
-                print(f"  保存しました: {dest.name}")
+                print("  保存しました: {}".format(dest.name))
                 saved_path = dest
         else:
             tmp.rename(dest)
-            print(f"  保存しました: {dest.name}")
+            print("  保存しました: {}".format(dest.name))
             saved_path = dest
 
         browser.close()
@@ -119,7 +120,8 @@ def download_csv() -> Path | None:
     return saved_path
 
 
-def _file_hash(path: Path) -> str:
+def _file_hash(path):
+    # type: (Path) -> str
     h = hashlib.md5()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
@@ -130,7 +132,8 @@ def _file_hash(path: Path) -> str:
 # ===========================================================================
 # Step 2: 全CSVを統合
 # ===========================================================================
-def load_all_csvs() -> pd.DataFrame:
+def load_all_csvs():
+    # type: () -> pd.DataFrame
     """
     downloads/ フォルダ内の全CSVを読み込み、統合した DataFrame を返す。
     1行目を見出し行として扱い、2行目以降を結合する。
@@ -141,7 +144,7 @@ def load_all_csvs() -> pd.DataFrame:
         print("ERROR: downloads/ フォルダにCSVファイルが見つかりません。")
         sys.exit(1)
 
-    print(f"[2/3] {len(csv_files)} 個のCSVを統合します...")
+    print("[2/3] {} 個のCSVを統合します...".format(len(csv_files)))
     frames = []
     for f in csv_files:
         try:
@@ -153,20 +156,23 @@ def load_all_csvs() -> pd.DataFrame:
                 on_bad_lines="skip",
             )
             frames.append(df)
-            print(f"  読み込み: {f.name}  ({len(df):,} 件)")
+            print("  読み込み: {}  ({:,} 件)".format(f.name, len(df)))
         except UnicodeDecodeError:
             # UTF-8 フォールバック
-            df = pd.read_csv(
-                f,
-                encoding="utf-8-sig",
-                dtype=str,
-                header=0,
-                on_bad_lines="skip",
-            )
-            frames.append(df)
-            print(f"  読み込み(UTF-8): {f.name}  ({len(df):,} 件)")
+            try:
+                df = pd.read_csv(
+                    f,
+                    encoding="utf-8-sig",
+                    dtype=str,
+                    header=0,
+                    on_bad_lines="skip",
+                )
+                frames.append(df)
+                print("  読み込み(UTF-8): {}  ({:,} 件)".format(f.name, len(df)))
+            except Exception as e:
+                print("  警告: {} の読み込みをスキップしました ({})".format(f.name, e))
         except Exception as e:
-            print(f"  警告: {f.name} の読み込みをスキップしました ({e})")
+            print("  警告: {} の読み込みをスキップしました ({})".format(f.name, e))
 
     if not frames:
         print("ERROR: 読み込めるCSVがありませんでした。")
@@ -176,14 +182,15 @@ def load_all_csvs() -> pd.DataFrame:
     combined = combined.fillna("")
     # 完全重複を除去
     combined = combined.drop_duplicates()
-    print(f"  統合後: {len(combined):,} 件 / {len(combined.columns)} 列")
+    print("  統合後: {:,} 件 / {} 列".format(len(combined), len(combined.columns)))
     return combined
 
 
 # ===========================================================================
 # Step 3: マスタファイルの作成 or 更新
 # ===========================================================================
-def update_master(new_df: pd.DataFrame):
+def update_master(new_df):
+    # type: (pd.DataFrame) -> None
     """
     初回 → master.xlsx を新規作成
     2回目以降:
@@ -192,9 +199,9 @@ def update_master(new_df: pd.DataFrame):
     """
     if not MASTER_PATH.exists():
         # 初回
-        print(f"[3/3] master.xlsx を新規作成します: {MASTER_PATH}")
+        print("[3/3] master.xlsx を新規作成します: {}".format(MASTER_PATH))
         new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
-        print(f"  ✅ 作成完了: {len(new_df):,} 件")
+        print("  完了: {:,} 件".format(len(new_df)))
         return
 
     # 2回目以降
@@ -203,22 +210,22 @@ def update_master(new_df: pd.DataFrame):
         master_df = pd.read_excel(str(MASTER_PATH), dtype=str, header=0)
         master_df = master_df.fillna("")
     except Exception as e:
-        print(f"ERROR: master.xlsx の読み込みに失敗しました: {e}")
+        print("ERROR: master.xlsx の読み込みに失敗しました: {}".format(e))
         sys.exit(1)
 
     # 見出し列をチェック
     if KEY_COL not in master_df.columns:
-        print(f"WARNING: master.xlsx に '{KEY_COL}' 列が見つかりません。")
+        print("WARNING: master.xlsx に '{}' 列が見つかりません。".format(KEY_COL))
         print("  全データを上書きします。")
         new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
-        print(f"  ✅ 上書き完了: {len(new_df):,} 件")
+        print("  上書き完了: {:,} 件".format(len(new_df)))
         return
 
     if KEY_COL not in new_df.columns:
-        print(f"WARNING: 新しいCSVに '{KEY_COL}' 列が見つかりません。")
+        print("WARNING: 新しいCSVに '{}' 列が見つかりません。".format(KEY_COL))
         print("  全データを上書きします。")
         new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
-        print(f"  ✅ 上書き完了: {len(new_df):,} 件")
+        print("  上書き完了: {:,} 件".format(len(new_df)))
         return
 
     # 共通列を揃える（列の追加にも対応）
@@ -260,9 +267,9 @@ def update_master(new_df: pd.DataFrame):
     result = master_indexed.reset_index()
     result.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
 
-    print(f"  新規追加: {added:,} 件")
-    print(f"  上書き更新: {updated:,} 件")
-    print(f"  ✅ master.xlsx 更新完了: {len(result):,} 件")
+    print("  新規追加: {:,} 件".format(added))
+    print("  上書き更新: {:,} 件".format(updated))
+    print("  master.xlsx 更新完了: {:,} 件".format(len(result)))
 
 
 # ===========================================================================
@@ -271,7 +278,7 @@ def update_master(new_df: pd.DataFrame):
 def main():
     print("=" * 60)
     print("機能性表示食品届出情報 CSV取得・マスタ更新スクリプト")
-    print(f"  実行日時: {datetime.now().strftime('%Y年%m月%d日 %H:%M:%S')}")
+    print("  実行日時: {}".format(datetime.now().strftime("%Y年%m月%d日 %H:%M:%S")))
     print("=" * 60)
 
     # Step 1: CSVダウンロード
@@ -287,8 +294,8 @@ def main():
     update_master(combined)
 
     print()
-    print("🎉 すべての処理が完了しました。")
-    print(f"   マスタファイル: {MASTER_PATH}")
+    print("すべての処理が完了しました。")
+    print("  マスタファイル: {}".format(MASTER_PATH))
 
 
 if __name__ == "__main__":
