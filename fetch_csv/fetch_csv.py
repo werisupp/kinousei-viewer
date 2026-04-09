@@ -19,7 +19,7 @@ import os
 import sys
 import glob
 import hashlib
-import threading
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List  # Python 3.9 対応
@@ -38,7 +38,7 @@ _require("pandas",     "pip install pandas openpyxl")
 _require("openpyxl",   "pip install openpyxl")
 
 import pandas as pd  # noqa: E402
-from playwright.sync_api import sync_playwright, Page, BrowserContext  # noqa: E402
+from playwright.sync_api import sync_playwright, Download  # noqa: E402
 
 # パス設定 ---------------------------------------------------------------------
 SCRIPT_DIR   = Path(__file__).resolve().parent          # fetch_csv/
@@ -48,11 +48,11 @@ TARGET_URL   = "https://www.fld.caa.go.jp/caaks/s/cssc01/"
 BUTTON_TEXT  = "前日までの全届出の全項目出力"
 KEY_COL      = "届出番号"                                # マスタ更新のキー列
 
-# ダウンロード完了を待つ最大秒数（全ファイル合計）
-DOWNLOAD_TIMEOUT = 300_000  # 300秒
+# ダウンロード完了を待つ最大秒数（ボタンクリック後、最後のダウンロードから待機）
+DOWNLOAD_TIMEOUT = 300  # 秒
 
-# 次のダウンロードを待つ最大秒数（連続ダウンロードの間隔待機）
-NEXT_DOWNLOAD_WAIT = 60_000  # 60秒待って次がこなければ終了
+# 最後のダウンロード発生から追加ダウンロードを待つ秒数
+NEXT_DOWNLOAD_WAIT = 60  # 秒
 
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -77,6 +77,15 @@ def cleanup_downloads():
 # ===========================================================================
 # Step 1: PlaywrightでCSVダウンロード（複数ファイル対応）
 # ===========================================================================
+def _file_hash(path):
+    # type: (Path) -> str
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def _save_download(download, label=""):
     # type: (...) -> Optional[Path]
     """download オブジェクトを downloads/ に保存し、パスを返す。"""
@@ -101,68 +110,34 @@ def _save_download(download, label=""):
     return dest
 
 
-def _collect_downloads(page, saved_paths, lock, label="page"):
-    # type: (Page, list, threading.Lock, str) -> None
-    """
-    指定ページで発生するダウンロードをすべて収集する。
-    メインページ・ポップアップページの両方に使用する。
-    NEXT_DOWNLOAD_WAIT 秒間ダウンロードが発生しなかったら終了。
-    """
-    import time
-    deadline = time.time() + (DOWNLOAD_TIMEOUT / 1000)
-    while time.time() < deadline:
-        try:
-            remaining_ms = int((deadline - time.time()) * 1000)
-            if remaining_ms <= 0:
-                break
-            wait_ms = min(remaining_ms, NEXT_DOWNLOAD_WAIT)
-            with page.expect_download(timeout=wait_ms) as dl_info:
-                pass
-            path = _save_download(dl_info.value, label=label)
-            if path:
-                with lock:
-                    saved_paths.append(path)
-        except Exception:
-            # タイムアウト → これ以上ダウンロードなし
-            break
-
-
 def download_csv():
     # type: () -> List[Path]
     """
     CAA届出情報DBページにアクセスし、
     「前日までの全届出の全項目出力(CSV出力)」ボタンを押して
     CSVファイルをダウンロードする。
-    メインページ・ポップアップページの両方で発生するダウンロードをすべて捕捉する。
+    context.on("download", ...) イベントハンドラで全ダウンロードをキャプチャする。
     保存したファイルのパスのリストを返す。
     """
     print("[1/3] ページにアクセスしてCSVをダウンロードします...")
     print("  URL: {}".format(TARGET_URL))
 
     saved_paths = []   # type: List[Path]
-    lock = threading.Lock()
+    pending_downloads = []  # type: list  # Downloadオブジェクトのキュー
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         context = browser.new_context(accept_downloads=True)
+
+        # --- コンテキストレベルのダウンロードハンドラ ---
+        # メインページ・ポップアップを問わず全ダウンロードを捕捉
+        def on_download(download):
+            # type: (Download) -> None
+            pending_downloads.append(download)
+
+        context.on("download", on_download)
+
         page = context.new_page()
-
-        # ポップアップページのハンドラをボタンクリック前に登録
-        popup_threads = []  # type: List[threading.Thread]
-
-        def on_page(popup):
-            # type: (Page) -> None
-            popup.set_default_timeout(DOWNLOAD_TIMEOUT)
-            t = threading.Thread(
-                target=_collect_downloads,
-                args=(popup, saved_paths, lock, "popup"),
-                daemon=True,
-            )
-            popup_threads.append(t)
-            t.start()
-
-        context.on("page", on_page)
-
         page.goto(TARGET_URL, timeout=60_000)
         page.wait_for_load_state("networkidle", timeout=30_000)
 
@@ -173,41 +148,43 @@ def download_csv():
             return []
 
         print("  ボタン発見: '{}' → クリック".format(btn.inner_text().strip()))
-
-        # メインページのダウンロードを別スレッドで監視する
-        # （1回クリックで連続9ファイルがメインページから直接配信されるパターンに対応）
-        main_thread = threading.Thread(
-            target=_collect_downloads,
-            args=(page, saved_paths, lock, "main"),
-            daemon=True,
-        )
-        main_thread.start()
-
-        # スレッドが監視始めるのを待ってからクリック
-        import time
-        time.sleep(0.3)
         btn.click()
-        print("  ダウンロード完了を待っています... (最大{})".format(
-            "{}秒".format(DOWNLOAD_TIMEOUT // 1000)))
+        print("  ダウンロード完了を待っています... (最大{}秒)".format(DOWNLOAD_TIMEOUT))
 
-        # メインスレッドとポップアップスレッドの完了を待つ
-        main_thread.join(timeout=DOWNLOAD_TIMEOUT / 1000)
-        for t in popup_threads:
-            t.join(timeout=DOWNLOAD_TIMEOUT / 1000)
+        # ダウンロードが来るまで最大 DOWNLOAD_TIMEOUT 秒待機
+        # 最後のダウンロードから NEXT_DOWNLOAD_WAIT 秒経過したら終了
+        deadline = time.time() + DOWNLOAD_TIMEOUT
+        last_count = 0
+        last_new_at = time.time()
+
+        while time.time() < deadline:
+            time.sleep(1)
+            current_count = len(pending_downloads)
+            if current_count > last_count:
+                last_count = current_count
+                last_new_at = time.time()
+                print("  ダウンロード検知: 累計 {} 件".format(current_count))
+            elif last_count > 0:
+                # 1件以上受信済みで NEXT_DOWNLOAD_WAIT 秒以上新着なし → 終了
+                if time.time() - last_new_at >= NEXT_DOWNLOAD_WAIT:
+                    print("  {}秒間新着なし → ダウンロード完了と判断".format(NEXT_DOWNLOAD_WAIT))
+                    break
+
+        if not pending_downloads:
+            print("  タイムアウト: ダウンロードが検知されませんでした。")
+            browser.close()
+            return []
+
+        # 全ダウンロードを保存
+        for i, dl in enumerate(pending_downloads):
+            path = _save_download(dl, label="{}/{}".format(i + 1, len(pending_downloads)))
+            if path:
+                saved_paths.append(path)
 
         browser.close()
 
     print("  合計 {} ファイルをダウンロードしました。".format(len(saved_paths)))
     return saved_paths
-
-
-def _file_hash(path):
-    # type: (Path) -> str
-    h = hashlib.md5()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 # ===========================================================================
