@@ -15,14 +15,12 @@ fetch_csv.py
   python3 -m playwright install chromium
   python3 fetch_csv/fetch_csv.py
 """
-import os
 import sys
-import glob
 import hashlib
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List  # Python 3.9 対応
+from typing import Optional, List
 
 # ライブラリ確認 ----------------------------------------------------------------
 def _require(pkg, install_hint):
@@ -34,25 +32,27 @@ def _require(pkg, install_hint):
         sys.exit(1)
 
 _require("playwright", "pip install playwright && python3 -m playwright install chromium")
+_require("requests",   "pip install requests")
 _require("pandas",     "pip install pandas openpyxl")
 _require("openpyxl",   "pip install openpyxl")
 
+import requests  # noqa: E402
 import pandas as pd  # noqa: E402
-from playwright.sync_api import sync_playwright, Download  # noqa: E402
+from playwright.sync_api import sync_playwright  # noqa: E402
 
 # パス設定 ---------------------------------------------------------------------
-SCRIPT_DIR   = Path(__file__).resolve().parent          # fetch_csv/
-DOWNLOAD_DIR = SCRIPT_DIR / "downloads"                 # fetch_csv/downloads/
-MASTER_PATH  = SCRIPT_DIR / "master.xlsx"               # fetch_csv/master.xlsx
+SCRIPT_DIR   = Path(__file__).resolve().parent
+DOWNLOAD_DIR = SCRIPT_DIR / "downloads"
+MASTER_PATH  = SCRIPT_DIR / "master.xlsx"
 TARGET_URL   = "https://www.fld.caa.go.jp/caaks/s/cssc01/"
 BUTTON_TEXT  = "前日までの全届出の全項目出力"
-KEY_COL      = "届出番号"                                # マスタ更新のキー列
+KEY_COL      = "届出番号"
 
-# ダウンロード完了を待つ最大秒数
-DOWNLOAD_TIMEOUT = 300  # 秒
+# ボタンクリック後、ネットワークリクエストを待つ最大秒数
+INTERCEPT_TIMEOUT = 120  # 秒
 
-# 最後のダウンロード発生から追加ダウンロードを待つ秒数
-NEXT_DOWNLOAD_WAIT = 60  # 秒
+# 最後のリクエスト検知から追加を待つ秒数
+NEXT_REQUEST_WAIT = 30  # 秒
 
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -61,9 +61,6 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # ===========================================================================
 def cleanup_downloads():
     # type: () -> None
-    """
-    downloads/ フォルダ内の全CSVファイルを削除する。
-    """
     csv_files = list(DOWNLOAD_DIR.glob("*.csv"))
     if not csv_files:
         print("  downloads/ フォルダにCSVはありません。")
@@ -75,77 +72,42 @@ def cleanup_downloads():
 
 
 # ===========================================================================
-# Step 1: PlaywrightでCSVダウンロード（複数ファイル対応）
+# Step 1: ネットワークインターセプトでURL取得 → requestsで保存
 # ===========================================================================
-def _file_hash(path):
-    # type: (Path) -> str
-    h = hashlib.md5()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _save_download(download, index=0, label=""):
-    # type: (...) -> Optional[Path]
-    """
-    download オブジェクトを downloads/ に保存し、パスを返す。
-    suggested_filename が .csv でない場合（UUIDなど）は連番ファイル名を使用する。
-    """
-    suggested = download.suggested_filename or ""
-    date_str = datetime.now().strftime("%Y%m%d")
-
-    # .csv 拡張子が含まれていない場合は連番ファイル名を自動生成
-    if not suggested.lower().endswith(".csv"):
-        suggested = "kinousei_{}_{:02d}.csv".format(date_str, index + 1)
-        print("  [{}] ファイル名を自動生成: {}".format(label, suggested))
-
-    dest = DOWNLOAD_DIR / suggested
-    tmp  = DOWNLOAD_DIR / ("_tmp_" + suggested)
-    download.save_as(str(tmp))
-
-    if dest.exists():
-        if _file_hash(tmp) == _file_hash(dest):
-            print("  [{}] 既に同じ内容のファイルが存在します: {} (スキップ)".format(label, dest.name))
-            tmp.unlink()
-            return dest
-        else:
-            ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dest = DOWNLOAD_DIR / "kinousei_{}_{}_{:02d}.csv".format(date_str, ts, index + 1)
-
-    tmp.rename(dest)
-    print("  [{}] 保存しました: {}".format(label, dest.name))
-    return dest
-
-
 def download_csv():
     # type: () -> List[Path]
     """
-    CAA届出情報DBページにアクセスし、
-    「前日までの全届出の全項目出力(CSV出力)」ボタンを押して
-    CSVファイルをダウンロードする。
-    context.on("download", ...) イベントハンドラで全ダウンロードをキャプチャする。
-    保存したファイルのパスのリストを返す。
+    Playwrightでボタンクリック後に発生するネットワークリクエストをインターセプトし、
+    CSV配信URL・Cookieを取得。その後 requests で実際にファイルを保存する。
     """
-    print("[1/3] ページにアクセスしてCSVをダウンロードします...")
+    print("[1/3] ページにアクセスしてCSV配信URLを取得します...")
     print("  URL: {}".format(TARGET_URL))
 
-    saved_paths = []   # type: List[Path]
-    pending_downloads = []  # type: list  # Downloadオブジェクトのキュー
+    csv_urls = []     # type: List[str]
+    cookies_dict = {} # type: dict
+    headers_dict = {} # type: dict
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=False)
-        context = browser.new_context(accept_downloads=True)
-
-        # --- コンテキストレベルのダウンロードハンドラ ---
-        # メインページ・ポップアップを問わず全ダウンロードを捕捉
-        def on_download(download):
-            # type: (Download) -> None
-            pending_downloads.append(download)
-
-        context.on("download", on_download)
-
+        context = browser.new_context()
         page = context.new_page()
+
+        # ネットワークリクエストをモニタリング
+        # CSV配信のリクエスト（大容量・拡張子なし）を捕捉する
+        def on_request(request):
+            url = request.url
+            # メインページやJS/CSSを除く、API系リクエストを捕捉
+            if (
+                "cssc01" not in url  # メインページは除外
+                and url not in csv_urls
+                and not url.endswith((".js", ".css", ".png", ".jpg", ".ico", ".woff", ".woff2"))
+                and "fld.caa.go.jp" in url
+            ):
+                csv_urls.append(url)
+                print("  リクエスト検知: {}".format(url))
+
+        page.on("request", on_request)
+
         page.goto(TARGET_URL, timeout=60_000)
         page.wait_for_load_state("networkidle", timeout=30_000)
 
@@ -156,40 +118,70 @@ def download_csv():
             return []
 
         print("  ボタン発見: '{}' → クリック".format(btn.inner_text().strip()))
-        btn.click()
-        print("  ダウンロード完了を待っています... (最大{}秒)".format(DOWNLOAD_TIMEOUT))
 
-        # 最後のダウンロードから NEXT_DOWNLOAD_WAIT 秒経過したら終了
-        deadline = time.time() + DOWNLOAD_TIMEOUT
+        # ボタンクリック前のURLリストをリセット
+        csv_urls.clear()
+        btn.click()
+
+        print("  リクエスト検知中... (最大{}秒)".format(INTERCEPT_TIMEOUT))
+
+        deadline = time.time() + INTERCEPT_TIMEOUT
         last_count = 0
         last_new_at = time.time()
 
         while time.time() < deadline:
             time.sleep(1)
-            current_count = len(pending_downloads)
+            current_count = len(csv_urls)
             if current_count > last_count:
                 last_count = current_count
                 last_new_at = time.time()
-                print("  ダウンロード検知: 累計 {} 件".format(current_count))
+                print("  URL検知: 累計 {} 件".format(current_count))
             elif last_count > 0:
-                if time.time() - last_new_at >= NEXT_DOWNLOAD_WAIT:
-                    print("  {}秒間新着なし → ダウンロード完了と判断".format(NEXT_DOWNLOAD_WAIT))
+                if time.time() - last_new_at >= NEXT_REQUEST_WAIT:
+                    print("  {}秒間新着なし → 取得完了と判断".format(NEXT_REQUEST_WAIT))
                     break
 
-        if not pending_downloads:
-            print("  タイムアウト: ダウンロードが検知されませんでした。")
-            browser.close()
-            return []
+        # Cookieをrequests用に取得
+        browser_cookies = context.cookies()
+        for c in browser_cookies:
+            cookies_dict[c["name"]] = c["value"]
 
-        # 全ダウンロードを保存
-        for i, dl in enumerate(pending_downloads):
-            path = _save_download(dl, index=i, label="{}/{}".format(i + 1, len(pending_downloads)))
-            if path:
-                saved_paths.append(path)
+        # User-Agentを取得
+        ua = page.evaluate("navigator.userAgent")
+        headers_dict = {
+            "User-Agent": ua,
+            "Referer": TARGET_URL,
+        }
 
         browser.close()
 
-    print("  合計 {} ファイルをダウンロードしました。".format(len(saved_paths)))
+    if not csv_urls:
+        print("  URLが検知されませんでした。")
+        return []
+
+    print("  検知したURL: {} 件 → requestsで保存開始".format(len(csv_urls)))
+
+    saved_paths = []  # type: List[Path]
+    date_str = datetime.now().strftime("%Y%m%d")
+
+    for i, url in enumerate(csv_urls):
+        label = "{}/{}".format(i + 1, len(csv_urls))
+        dest = DOWNLOAD_DIR / "kinousei_{}_{:02d}.csv".format(date_str, i + 1)
+        print("  [{}] ダウンロード中: {}".format(label, url))
+        try:
+            resp = requests.get(url, cookies=cookies_dict, headers=headers_dict, timeout=120, stream=True)
+            resp.raise_for_status()
+            with open(dest, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=65536):
+                    if chunk:
+                        f.write(chunk)
+            size_mb = dest.stat().st_size / 1024 / 1024
+            print("  [{}] 保存完了: {} ({:.1f} MB)".format(label, dest.name, size_mb))
+            saved_paths.append(dest)
+        except Exception as e:
+            print("  [{}] エラー: {}".format(label, e))
+
+    print("  合計 {} ファイルを保存しました。".format(len(saved_paths)))
     return saved_paths
 
 
@@ -198,11 +190,6 @@ def download_csv():
 # ===========================================================================
 def load_all_csvs():
     # type: () -> pd.DataFrame
-    """
-    downloads/ フォルダ内の全CSVを読み込み、統合した DataFrame を返す。
-    1行目を見出し行として扱い、2行目以降を結合する。
-    重複行（全列一致）は除去する。
-    """
     csv_files = sorted(DOWNLOAD_DIR.glob("*.csv"))
     if not csv_files:
         print("ERROR: downloads/ フォルダにCSVファイルが見つかりません。")
@@ -212,38 +199,25 @@ def load_all_csvs():
     frames = []
     for f in csv_files:
         try:
-            df = pd.read_csv(
-                f,
-                encoding="cp932",   # CAA公開CSVはShift-JIS(CP932)が多い
-                dtype=str,
-                header=0,
-                on_bad_lines="skip",
-            )
+            df = pd.read_csv(f, encoding="cp932", dtype=str, header=0, on_bad_lines="skip")
             frames.append(df)
             print("  読み込み: {}  ({:,} 件)".format(f.name, len(df)))
         except UnicodeDecodeError:
             try:
-                df = pd.read_csv(
-                    f,
-                    encoding="utf-8-sig",
-                    dtype=str,
-                    header=0,
-                    on_bad_lines="skip",
-                )
+                df = pd.read_csv(f, encoding="utf-8-sig", dtype=str, header=0, on_bad_lines="skip")
                 frames.append(df)
                 print("  読み込み(UTF-8): {}  ({:,} 件)".format(f.name, len(df)))
             except Exception as e:
-                print("  警告: {} の読み込みをスキップしました ({})".format(f.name, e))
+                print("  警告: {} の読み込みをスキップ ({})".format(f.name, e))
         except Exception as e:
-            print("  警告: {} の読み込みをスキップしました ({})".format(f.name, e))
+            print("  警告: {} の読み込みをスキップ ({})".format(f.name, e))
 
     if not frames:
         print("ERROR: 読み込めるCSVがありませんでした。")
         sys.exit(1)
 
     combined = pd.concat(frames, ignore_index=True)
-    combined = combined.fillna("")
-    combined = combined.drop_duplicates()
+    combined = combined.fillna("").drop_duplicates()
     print("  統合後: {:,} 件 / {} 列".format(len(combined), len(combined.columns)))
     return combined
 
@@ -253,12 +227,6 @@ def load_all_csvs():
 # ===========================================================================
 def update_master(new_df):
     # type: (pd.DataFrame) -> None
-    """
-    初回 → master.xlsx を新規作成
-    2回目以降:
-      - 届出番号が新規 → 追加
-      - 届出番号が一致するが他列が異なる → 上書き
-    """
     if not MASTER_PATH.exists():
         print("[3/3] master.xlsx を新規作成します: {}".format(MASTER_PATH))
         new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
@@ -267,20 +235,13 @@ def update_master(new_df):
 
     print("[3/3] master.xlsx と差分を確認して更新します...")
     try:
-        master_df = pd.read_excel(str(MASTER_PATH), dtype=str, header=0)
-        master_df = master_df.fillna("")
+        master_df = pd.read_excel(str(MASTER_PATH), dtype=str, header=0).fillna("")
     except Exception as e:
-        print("ERROR: master.xlsx の読み込みに失敗しました: {}".format(e))
+        print("ERROR: master.xlsx の読み込みに失敗: {}".format(e))
         sys.exit(1)
 
-    if KEY_COL not in master_df.columns:
-        print("WARNING: master.xlsx に '{}' 列が見つかりません。全データを上書きします。".format(KEY_COL))
-        new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
-        print("  上書き完了: {:,} 件".format(len(new_df)))
-        return
-
-    if KEY_COL not in new_df.columns:
-        print("WARNING: 新しいCSVに '{}' 列が見つかりません。全データを上書きします。".format(KEY_COL))
+    if KEY_COL not in master_df.columns or KEY_COL not in new_df.columns:
+        print("WARNING: '{}' 列が見つかりません。全データを上書きします。".format(KEY_COL))
         new_df.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
         print("  上書き完了: {:,} 件".format(len(new_df)))
         return
@@ -297,15 +258,10 @@ def update_master(new_df):
     master_indexed = master_df.set_index(KEY_COL)
     new_indexed    = new_df.set_index(KEY_COL)
 
-    added   = 0
-    updated = 0
-
+    added = updated = 0
     for key, new_row in new_indexed.iterrows():
         if key not in master_indexed.index:
-            master_indexed = pd.concat([
-                master_indexed,
-                new_row.to_frame().T
-            ])
+            master_indexed = pd.concat([master_indexed, new_row.to_frame().T])
             added += 1
         else:
             existing = master_indexed.loc[key]
@@ -318,9 +274,7 @@ def update_master(new_df):
 
     result = master_indexed.reset_index()
     result.to_excel(str(MASTER_PATH), index=False, engine="openpyxl")
-
-    print("  新規追加: {:,} 件".format(added))
-    print("  上書き更新: {:,} 件".format(updated))
+    print("  新規追加: {:,} 件 / 上書き更新: {:,} 件".format(added, updated))
     print("  master.xlsx 更新完了: {:,} 件".format(len(result)))
 
 
