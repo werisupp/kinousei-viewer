@@ -20,6 +20,7 @@ import sys
 import glob
 import hashlib
 import time
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List  # Python 3.9 対応
@@ -54,7 +55,23 @@ DOWNLOAD_TIMEOUT = 300  # 秒
 # 最後のダウンロード発生から追加ダウンロードを待つ秒数
 NEXT_DOWNLOAD_WAIT = 60  # 秒
 
+# 保存するCSVのファイル名プレフィックス
+FILE_PREFIX = "機能性表示食品全届出一覧"
+
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# UUID形式かどうか判定する正規表現
+_UUID_RE = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    re.IGNORECASE
+)
+
+def _is_uuid(name):
+    # type: (str) -> bool
+    """ファイル名（拡張子なし）がUUID形式かどうかを返す。"""
+    stem = Path(name).stem
+    return bool(_UUID_RE.match(stem))
+
 
 # ===========================================================================
 # 事前クリーンアップ
@@ -86,27 +103,36 @@ def _file_hash(path):
     return h.hexdigest()
 
 
-def _save_download(download, label=""):
+def _save_download(download, index=0):
     # type: (...) -> Optional[Path]
-    """download オブジェクトを downloads/ に保存し、パスを返す。"""
-    suggested = download.suggested_filename or "kinousei_{}.csv".format(
-        datetime.now().strftime("%Y%m%d_%H%M%S")
-    )
-    dest = DOWNLOAD_DIR / suggested
-    tmp  = DOWNLOAD_DIR / ("_tmp_" + suggested)
+    """
+    download オブジェクトを downloads/ に保存し、パスを返す。
+    ファイル名がUUID形式・拡張子なし・空の場合は連番CSVファイル名を使用する。
+    """
+    today = datetime.now().strftime("%Y%m%d")
+    suggested = download.suggested_filename or ""
+
+    # ファイル名がUUID形式、または拡張子が .csv でない場合は連番名に置き換える
+    if not suggested or _is_uuid(suggested) or not suggested.lower().endswith(".csv"):
+        filename = "{}{}_{}.csv".format(FILE_PREFIX, today, index)
+    else:
+        filename = suggested
+
+    dest = DOWNLOAD_DIR / filename
+    tmp  = DOWNLOAD_DIR / ("_tmp_" + filename)
     download.save_as(str(tmp))
 
     if dest.exists():
         if _file_hash(tmp) == _file_hash(dest):
-            print("  [{}] 既に同じ内容のファイルが存在します: {} (スキップ)".format(label, dest.name))
+            print("  [{}] 既に同じ内容のファイルが存在します: {} (スキップ)".format(index, dest.name))
             tmp.unlink()
             return dest
         else:
             ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dest = DOWNLOAD_DIR / "{}_{}{}".format(dest.stem, ts, dest.suffix)
+            dest = DOWNLOAD_DIR / "{}_{}_{}.csv".format(FILE_PREFIX, today, ts)
 
     tmp.rename(dest)
-    print("  [{}] 保存しました: {}".format(label, dest.name))
+    print("  [{}] 保存しました: {}".format(index, dest.name))
     return dest
 
 
@@ -126,7 +152,7 @@ def download_csv():
     pending_downloads = []  # type: list  # Downloadオブジェクトのキュー
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+        browser = pw.chromium.launch(headless=False)
         context = browser.new_context(accept_downloads=True)
 
         # --- コンテキストレベルのダウンロードハンドラ ---
@@ -177,7 +203,7 @@ def download_csv():
 
         # 全ダウンロードを保存
         for i, dl in enumerate(pending_downloads):
-            path = _save_download(dl, label="{}/{}".format(i + 1, len(pending_downloads)))
+            path = _save_download(dl, index=i + 1)
             if path:
                 saved_paths.append(path)
 
