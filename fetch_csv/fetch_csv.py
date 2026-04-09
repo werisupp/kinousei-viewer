@@ -73,7 +73,7 @@ def _save_download(download, label=""):
             return dest
         else:
             ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
-            dest = DOWNLOAD_DIR / "{}_{}{}".format(dest.stem, ts, dest.suffix)
+            dest = DOWNLOAD_DIR / "{}_{{}}{{}}" .format(dest.stem).format(ts, dest.suffix)
 
     tmp.rename(dest)
     print("  [{}] 保存しました: {}".format(label, dest.name))
@@ -83,18 +83,27 @@ def _save_download(download, label=""):
 def _handle_page_downloads(page, saved_paths, lock, label="popup"):
     # type: (Page, list, threading.Lock, str) -> None
     """
-    ページで発生するダウンロードをすべて収集する。
-    ポップアップページ用のハンドラとして別スレッドで呼ぶ。
+    ポップアップページで発生するダウンロードをすべて収集する（複数ファイル対応）。
+    ダウンロードが一定時間発生しなくなったら終了する。
     """
-    try:
-        with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as dl_info:
-            pass  # ダウンロードが始まるのを待つだけ
-        path = _save_download(dl_info.value, label=label)
-        if path:
-            with lock:
-                saved_paths.append(path)
-    except Exception as e:
-        print("  [{}] ダウンロード待受エラー: {}".format(label, e))
+    import time
+    deadline = time.time() + (DOWNLOAD_TIMEOUT / 1000)
+    while time.time() < deadline:
+        try:
+            remaining_ms = int((deadline - time.time()) * 1000)
+            if remaining_ms <= 0:
+                break
+            # 次のダウンロードを最大30秒待つ（30秒以上来なければ終了）
+            wait_ms = min(remaining_ms, 30_000)
+            with page.expect_download(timeout=wait_ms) as dl_info:
+                pass
+            path = _save_download(dl_info.value, label=label)
+            if path:
+                with lock:
+                    saved_paths.append(path)
+        except Exception:
+            # タイムアウト → これ以上ダウンロードなしと判断して終了
+            break
 
 
 def download_csv():
@@ -123,6 +132,7 @@ def download_csv():
         page = context.new_page()
 
         # ポップアップ（新しいページ）が開かれたときのハンドラを登録
+        # ★ btn.click() より前に登録しておくことで取りこぼしを防ぐ
         popup_threads = []  # type: List[threading.Thread]
 
         def on_page(popup):
@@ -150,37 +160,24 @@ def download_csv():
 
         print("  ボタン発見: '{}' → クリック".format(btn.inner_text().strip()))
 
-        # メインページでもダウンロードが発生する可能性があるため両方待受
+        # ★ メインページでダウンロードが発生する場合に備えて待受しつつ、
+        #    1回だけクリックする。ポップアップのみの場合は10秒でタイムアウトし
+        #    except に流れるが、その場合でも on_page ハンドラが捕捉している。
         try:
-            with page.expect_download(timeout=DOWNLOAD_TIMEOUT) as dl_info:
+            with page.expect_download(timeout=10_000) as dl_main:
                 btn.click()
-            path = _save_download(dl_info.value, label="main")
+            path = _save_download(dl_main.value, label="main")
             if path:
-                saved_paths.append(path)
+                with lock:
+                    saved_paths.append(path)
         except Exception:
-            # メインページではダウンロードが発生せずポップアップのみの場合
-            btn.click()
+            # メインページではダウンロードが発生しない（ポップアップのみ）→ 正常
+            # btn.click() は expect_download のコンテキスト内で1回だけ実行済み
+            pass
 
         # ポップアップスレッドがすべて完了するまで待つ
-        # （サイトによってはポップアップが複数開くため少し余裕を持って待機）
         for t in popup_threads:
             t.join(timeout=DOWNLOAD_TIMEOUT / 1000)
-
-        # ポップアップが開かれた後に追加で発生するダウンロードも待つ
-        # （全ポップアップのダウンロードが完了するまで最大30秒追加待機）
-        import time
-        wait_extra = 30
-        prev_count = -1
-        elapsed = 0
-        while elapsed < wait_extra:
-            time.sleep(2)
-            elapsed += 2
-            with lock:
-                current_count = len(saved_paths)
-            if current_count == prev_count and current_count > 0:
-                # カウントが変化しなくなったら完了とみなす
-                break
-            prev_count = current_count
 
         browser.close()
 
