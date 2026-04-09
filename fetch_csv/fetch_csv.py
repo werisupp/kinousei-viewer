@@ -126,7 +126,7 @@ def download_csv():
     pending_downloads = []  # type: list  # Downloadオブジェクトのキュー
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+        browser = pw.chromium.launch(headless=False)
         context = browser.new_context(accept_downloads=True)
 
         # --- コンテキストレベルのダウンロードハンドラ ---
