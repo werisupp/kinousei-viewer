@@ -33,12 +33,21 @@
 html{-webkit-font-smoothing:antialiased}
 body{font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);min-height:100vh}
 button{cursor:pointer;font-family:inherit}
+/* ヘッダー */
 .hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;position:sticky;top:0;z-index:100;box-shadow:var(--sh1)}
 .hdr-in{max-width:1640px;margin:0 auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;color:var(--pri);white-space:nowrap}
 .meta{font-size:11px;color:var(--muted)}
 .tbtn{margin-left:auto;background:none;border:1px solid var(--border);border-radius:var(--r8);padding:5px 10px;color:var(--muted);transition:all .15s;font-size:16px;line-height:1}
 .tbtn:hover{background:var(--surface2);color:var(--text)}
+/* シートタブ */
+.sheet-tabs{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:0;align-items:flex-end}
+.sheet-tabs-in{max-width:1640px;margin:0 auto;display:flex;gap:0;align-items:flex-end;width:100%}
+.stab{padding:8px 20px 7px;border:1px solid transparent;border-bottom:none;border-radius:var(--r4) var(--r4) 0 0;font-size:13px;font-weight:600;color:var(--muted);background:var(--surface2);cursor:pointer;transition:all .15s;position:relative;bottom:-1px;margin-right:3px;white-space:nowrap}
+.stab:hover{background:var(--pri-l);color:var(--pri)}
+.stab.active{background:var(--surface);border-color:var(--border);border-bottom-color:var(--surface);color:var(--pri);box-shadow:0 -2px 0 var(--pri) inset}
+.stab-icon{margin-right:5px;font-size:12px}
+/* 検索バー */
 .bar{max-width:1640px;margin:14px auto 0;padding:0 20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sw{position:relative;flex:1;min-width:180px}
 .sw svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;width:15px;height:15px}
@@ -48,10 +57,10 @@ button{cursor:pointer;font-family:inherit}
 .fs:focus{border-color:var(--pri)}
 .sb{font-size:12px;color:var(--muted);background:var(--surface2);padding:6px 10px;border-radius:var(--r8);white-space:nowrap}
 .sb strong{color:var(--pri);font-size:14px}
-/* フィルタークリアボタン */
 .clr-btn{padding:6px 12px;border:1px solid var(--border);border-radius:var(--r8);background:var(--surface);color:var(--muted);font-size:12px;font-family:var(--font);cursor:pointer;transition:all .15s;white-space:nowrap;display:none}
 .clr-btn.vis{display:inline-flex;align-items:center;gap:4px}
 .clr-btn:hover{background:var(--err-bg);border-color:var(--err);color:var(--err)}
+/* テーブルエリア */
 .tw{max-width:1640px;margin:12px auto 24px;padding:0 20px}
 .tb{background:var(--surface);border-radius:var(--r12);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh1)}
 .ts{overflow-x:auto}
@@ -62,7 +71,6 @@ thead th .th-in:hover{background:var(--pri-l);color:var(--pri)}
 thead th.sorted .th-in{color:var(--pri)}
 thead th.col-filtered .th-in{color:var(--pri)}
 thead th.col-filtered .th-in::after{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--pri);margin-left:2px}
-/* フィルターボタン */
 .flt-btn{flex-shrink:0;background:none;border:none;padding:2px 4px;border-radius:var(--r4);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .1s;font-size:10px;line-height:1;margin-left:auto}
 .flt-btn:hover{background:var(--pri-l);color:var(--pri)}
 .flt-btn.active{color:var(--pri);font-weight:bold}
@@ -86,23 +94,15 @@ td{padding:8px 12px;vertical-align:top}
 .ppw{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 .pps{padding:4px 6px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font)}
 /* 列フィルターポップアップ */
-.col-flt-pop{
-  display:none;position:fixed;z-index:300;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--r12);box-shadow:var(--sh3);
-  width:300px;max-height:520px;overflow:hidden;
-  display:none;flex-direction:column;
-  animation:popin .15s cubic-bezier(.16,1,.3,1);
-}
-.col-flt-pop.open{display:flex;}
+.col-flt-pop{display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:var(--r12);box-shadow:var(--sh3);width:300px;max-height:520px;overflow:hidden;flex-direction:column;animation:popin .15s cubic-bezier(.16,1,.3,1)}
+.col-flt-pop.open{display:flex}
 @keyframes popin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .cfp-hdr{padding:12px 14px 8px;border-bottom:1px solid var(--div)}
 .cfp-hdr h3{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px}
-.cfp-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r8);overflow:hidden;}
+.cfp-tabs{display:flex;gap:0;border:1px solid var(--border);border-radius:var(--r8);overflow:hidden}
 .cfp-tab{flex:1;padding:5px 8px;background:var(--surface);border:none;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .1s;font-family:var(--font)}
 .cfp-tab.active{background:var(--pri);color:#fff}
 .cfp-body{overflow-y:auto;flex:1}
-/* タブ: テキストフィルター */
 .cfp-text{padding:12px 14px}
 .cfp-row{margin-bottom:10px}
 .cfp-row label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:4px}
@@ -112,7 +112,6 @@ td{padding:8px 12px;vertical-align:top}
 .cfp-logic span{font-size:11px;color:var(--muted)}
 .cfp-logic-btn{flex:1;padding:4px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .1s;font-family:var(--font)}
 .cfp-logic-btn.active{background:var(--pri-l);border-color:var(--pri);color:var(--pri)}
-/* タブ: 値リスト */
 .cfp-list{padding:10px 14px}
 .cfp-list-search{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r4);background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);outline:none;margin-bottom:8px;transition:border-color .15s}
 .cfp-list-search:focus{border-color:var(--pri)}
@@ -131,7 +130,7 @@ td{padding:8px 12px;vertical-align:top}
 .cfp-cl:hover{background:var(--surface2);color:var(--text)}
 .cfp-rst{background:none;border-color:var(--err);color:var(--err);margin-right:auto}
 .cfp-rst:hover{background:var(--err-bg)}
-/* SR情報テーブル */
+/* SR情報テーブル（モーダル内） */
 .sr-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
 .sr-table th{background:var(--surface2);padding:6px 8px;text-align:left;font-weight:600;font-size:10px;color:var(--muted);border:1px solid var(--border);white-space:nowrap}
 .sr-table td{padding:6px 8px;border:1px solid var(--border);vertical-align:top;word-break:break-all;line-height:1.5}
@@ -178,7 +177,21 @@ td{padding:8px 12px;vertical-align:top}
   <button class="tbtn" id="themeBtn" aria-label="テーマ切替">🌙</button>
 </div>
 </header>
-<div class="bar">
+
+<!-- シートタブ -->
+<div class="sheet-tabs">
+  <div class="sheet-tabs-in">
+    <button class="stab active" id="tabMain" onclick="switchSheet('main')">
+      <span class="stab-icon">📋</span>統合データ
+    </button>
+    <button class="stab" id="tabSR" onclick="switchSheet('sr')" style="display:none">
+      <span class="stab-icon">📄</span>SR情報抽出
+    </button>
+  </div>
+</div>
+
+<!-- 統合データ用バー -->
+<div class="bar" id="barMain">
   <div class="sw">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     <input class="si" type="search" id="srch" placeholder="商品名・法人名・成分名・届出番号で検索…" autocomplete="off">
@@ -188,7 +201,19 @@ td{padding:8px 12px;vertical-align:top}
   <button class="clr-btn" id="clrColFlt" title="列フィルターをすべてクリア">✕ 列フィルターをクリア</button>
   <div class="sb" id="cnt"><span class="spin"></span></div>
 </div>
-<div class="tw">
+
+<!-- SR情報抽出用バー -->
+<div class="bar" id="barSR" style="display:none">
+  <div class="sw">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input class="si" type="search" id="srSrch" placeholder="届出番号・成分名・機能性などで検索…" autocomplete="off">
+  </div>
+  <button class="clr-btn" id="clrSRColFlt" title="列フィルターをすべてクリア">✕ 列フィルターをクリア</button>
+  <div class="sb" id="srCnt"></div>
+</div>
+
+<!-- 統合データ テーブル -->
+<div class="tw" id="twMain">
   <div class="tb">
     <div class="ts">
       <table>
@@ -197,6 +222,19 @@ td{padding:8px 12px;vertical-align:top}
       </table>
     </div>
     <div class="pag" id="pag"></div>
+  </div>
+</div>
+
+<!-- SR情報抽出 テーブル -->
+<div class="tw" id="twSR" style="display:none">
+  <div class="tb">
+    <div class="ts">
+      <table>
+        <thead id="srTH"></thead>
+        <tbody id="srTB"><tr><td colspan="99" class="loading"><span class="spin"></span>読み込み中…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="pag" id="srPag"></div>
   </div>
 </div>
 
@@ -210,7 +248,6 @@ td{padding:8px 12px;vertical-align:top}
     </div>
   </div>
   <div class="cfp-body" id="cfpBody">
-    <!-- テキストフィルタータブ -->
     <div id="cfpTextPane" class="cfp-text">
       <div class="cfp-row">
         <label>条件1</label>
@@ -246,7 +283,6 @@ td{padding:8px 12px;vertical-align:top}
         <input type="text" id="cfpVal2" placeholder="値を入力（任意）" style="margin-top:5px">
       </div>
     </div>
-    <!-- 値リストタブ -->
     <div id="cfpListPane" class="cfp-list" style="display:none">
       <input class="cfp-list-search" type="text" id="cfpListSrch" placeholder="値を検索…">
       <div class="cfp-list-ctrl">
@@ -263,7 +299,7 @@ td{padding:8px 12px;vertical-align:top}
   </div>
 </div>
 
-<!-- 詳細モーダル -->
+<!-- 詳細モーダル (統合データ行クリック時) -->
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="mT">
   <div class="modal">
     <div class="mh">
@@ -274,17 +310,29 @@ td{padding:8px 12px;vertical-align:top}
     <div class="mf"><button class="btn btn-g" id="mCB">閉じる</button></div>
   </div>
 </div>
+
 <script>
+// ========== データ ==========
 const D={{ALL_DATA_JSON}};
 const TC={{TABLE_COLS_JSON}};
+const SR_D={{SR_RECORDS_JSON}};
+const SR_TC={{SR_COLS_JSON}};
 const KC="{{KUBUN_LABEL}}";
 const SC="{{STATUS_LABEL}}";
 const HAS_SR={{HAS_SR}};
-let fil=D.slice(),pg=1,pp=50,sc=null,sa=true;
-// 列フィルター状態 { colName: { type:'text'|'list', logic:'AND'|'OR', op1, val1, op2, val2, selected:Set } }
-const colFilters={};
-let cfpCol=null, cfpTab='text', cfpLogic='AND';
 
+// ========== 状態 ==========
+let curSheet='main';
+// 統合データ
+let fil=D.slice(),pg=1,pp=50,sc=null,sa=true;
+const colFilters={};
+// SR情報
+let srFil=SR_D.slice(),srPg=1,srPp=50,srSc=null,srSa=true;
+const srColFilters={};
+// 共有
+let cfpCol=null,cfpTab='text',cfpLogic='AND',cfpForSheet='main';
+
+// ========== テーマ ==========
 (function(){
   const btn=document.getElementById('themeBtn'),h=document.documentElement;
   let t;
@@ -294,6 +342,18 @@ let cfpCol=null, cfpTab='text', cfpLogic='AND';
   btn.onclick=()=>{t=t==='dark'?'light':'dark';h.setAttribute('data-theme',t);try{localStorage.setItem('kvt',t);}catch(e){}btn.textContent=t==='dark'?'☀️':'🌙';};
 })();
 
+// ========== シート切替 ==========
+function switchSheet(sheet){
+  curSheet=sheet;
+  document.getElementById('tabMain').classList.toggle('active',sheet==='main');
+  document.getElementById('tabSR').classList.toggle('active',sheet==='sr');
+  document.getElementById('barMain').style.display=sheet==='main'?'':'none';
+  document.getElementById('barSR').style.display=sheet==='sr'?'':'none';
+  document.getElementById('twMain').style.display=sheet==='main'?'':'none';
+  document.getElementById('twSR').style.display=sheet==='sr'?'':'none';
+}
+
+// ========== 統合データ ヘッダー構築 ==========
 function buildH(){
   const tr=document.createElement('tr');
   TC.forEach((c,i)=>{
@@ -301,41 +361,70 @@ function buildH(){
     const inner=document.createElement('div');
     inner.className='th-in';
     inner.innerHTML=c+' <span id="si'+i+'" style="opacity:.4;flex-shrink:0">↕</span>';
-    inner.onclick=(e)=>{
-      if(e.target.classList.contains('flt-btn'))return;
-      srtBy(c,i);
-    };
+    inner.onclick=(e)=>{if(e.target.classList.contains('flt-btn'))return;srtBy(c,i);};
     const fb=document.createElement('button');
-    fb.className='flt-btn';
-    fb.title='列フィルター: '+c;
-    fb.innerHTML='▼';
-    fb.setAttribute('data-col',c);
-    fb.onclick=(e)=>{e.stopPropagation();openCfp(c,fb);};
-    inner.appendChild(fb);
-    th.appendChild(inner);
-    th.id='th-'+i;
+    fb.className='flt-btn';fb.title='列フィルター: '+c;fb.innerHTML='▼';
+    fb.setAttribute('data-col',c);fb.setAttribute('data-sheet','main');
+    fb.onclick=(e)=>{e.stopPropagation();openCfp(c,fb,'main');};
+    inner.appendChild(fb);th.appendChild(inner);th.id='mth-'+i;
     tr.appendChild(th);
   });
   document.getElementById('tH').appendChild(tr);
 }
 
+// ========== SR情報 ヘッダー構築 ==========
+function buildSRH(){
+  const tr=document.createElement('tr');
+  SR_TC.forEach((c,i)=>{
+    const th=document.createElement('th');
+    const inner=document.createElement('div');
+    inner.className='th-in';
+    inner.innerHTML=c+' <span id="srsi'+i+'" style="opacity:.4;flex-shrink:0">↕</span>';
+    inner.onclick=(e)=>{if(e.target.classList.contains('flt-btn'))return;srSrtBy(c,i);};
+    const fb=document.createElement('button');
+    fb.className='flt-btn';fb.title='列フィルター: '+c;fb.innerHTML='▼';
+    fb.setAttribute('data-col',c);fb.setAttribute('data-sheet','sr');
+    fb.onclick=(e)=>{e.stopPropagation();openCfp(c,fb,'sr');};
+    inner.appendChild(fb);th.appendChild(inner);th.id='srth-'+i;
+    tr.appendChild(th);
+  });
+  document.getElementById('srTH').appendChild(tr);
+}
+
+// ========== 統合データ ソート ==========
 function srtBy(c,i){
   if(sc===c)sa=!sa;else{sc=c;sa=true;}
   fil.sort((a,b)=>{const va=a.t[c]||'',vb=b.t[c]||'';return sa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
-  document.querySelectorAll('#tH th').forEach((th,j)=>{th.classList.toggle('sorted',TC[j]===c);document.getElementById('si'+j).textContent=TC[j]===c?(sa?'↑':'↓'):'↕';document.getElementById('si'+j).style.opacity=TC[j]===c?'1':'.4';});
+  document.querySelectorAll('#tH th').forEach((th,j)=>{
+    th.classList.toggle('sorted',TC[j]===c);
+    document.getElementById('si'+j).textContent=TC[j]===c?(sa?'↑':'↓'):'↕';
+    document.getElementById('si'+j).style.opacity=TC[j]===c?'1':'.4';
+  });
   pg=1;render();
 }
 
-/* ===== 列フィルターポップアップ ===== */
-function openCfp(col, anchorEl){
-  cfpCol=col;
+// ========== SR情報 ソート ==========
+function srSrtBy(c,i){
+  if(srSc===c)srSa=!srSa;else{srSc=c;srSa=true;}
+  srFil.sort((a,b)=>{const va=a.t[c]||'',vb=b.t[c]||'';return srSa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
+  document.querySelectorAll('#srTH th').forEach((th,j)=>{
+    th.classList.toggle('sorted',SR_TC[j]===c);
+    document.getElementById('srsi'+j).textContent=SR_TC[j]===c?(srSa?'↑':'↓'):'↕';
+    document.getElementById('srsi'+j).style.opacity=SR_TC[j]===c?'1':'.4';
+  });
+  srPg=1;srRender();
+}
+
+// ========== 列フィルターポップアップ ==========
+function openCfp(col,anchorEl,sheet){
+  cfpCol=col;cfpForSheet=sheet;
+  const filters=sheet==='sr'?srColFilters:colFilters;
+  const srcData=sheet==='sr'?SR_D:D;
   document.getElementById('cfpTitle').textContent='「'+col+'」フィルター';
-  // 既存設定があれば復元
-  const cf=colFilters[col];
+  const cf=filters[col];
   if(cf){
-    if(cf.type==='list'){
-      switchCfpTab('list');
-    } else {
+    if(cf.type==='list'){switchCfpTab('list');}
+    else{
       switchCfpTab('text');
       document.getElementById('cfpOp1').value=cf.op1||'contains';
       document.getElementById('cfpVal1').value=cf.val1||'';
@@ -351,22 +440,17 @@ function openCfp(col, anchorEl){
     document.getElementById('cfpVal2').value='';
     setLogic('AND');
   }
-  // 値リスト生成
-  buildValList(col);
-  // ポップアップ位置
+  buildValList(col,srcData,filters[col]);
   const pop=document.getElementById('colFltPop');
   pop.classList.add('open');
   const rect=anchorEl.getBoundingClientRect();
-  let left=rect.left, top=rect.bottom+4;
+  let left=rect.left,top=rect.bottom+4;
   if(left+310>window.innerWidth)left=window.innerWidth-314;
   if(top+540>window.innerHeight)top=rect.top-544;
   pop.style.left=Math.max(4,left)+'px';
   pop.style.top=Math.max(4,top)+'px';
 }
-function closeCfp(){
-  document.getElementById('colFltPop').classList.remove('open');
-  cfpCol=null;
-}
+function closeCfp(){document.getElementById('colFltPop').classList.remove('open');cfpCol=null;}
 function switchCfpTab(tab){
   cfpTab=tab;
   document.getElementById('cfpTabText').classList.toggle('active',tab==='text');
@@ -379,31 +463,28 @@ function setLogic(l){
   document.getElementById('cfpAnd').classList.toggle('active',l==='AND');
   document.getElementById('cfpOr').classList.toggle('active',l==='OR');
 }
-function buildValList(col){
+function buildValList(col,srcData,cf){
   const srch=document.getElementById('cfpListSrch');
   srch.value='';
-  const cf=colFilters[col];
   const selected=cf&&cf.type==='list'?cf.selected:null;
-  const vals=[...new Set(D.map(r=>r.t[col]||''))].sort((a,b)=>a.localeCompare(b,'ja'));
-  renderValList(col,vals,selected);
+  const vals=[...new Set(srcData.map(r=>r.t[col]||''))].sort((a,b)=>a.localeCompare(b,'ja'));
+  renderValList(vals,selected);
   srch.oninput=()=>{
     const q=srch.value.toLowerCase();
-    renderValList(col,vals.filter(v=>v.toLowerCase().includes(q)),selected);
+    renderValList(vals.filter(v=>v.toLowerCase().includes(q)),selected);
   };
 }
-function renderValList(col,vals,selected){
+function renderValList(vals,selected){
   const container=document.getElementById('cfpVals');
   container.innerHTML='';
   vals.forEach(v=>{
     const item=document.createElement('label');
     item.className='cfp-val-item';
     const cb=document.createElement('input');
-    cb.type='checkbox';
-    cb.value=v;
+    cb.type='checkbox';cb.value=v;
     cb.checked=selected?selected.has(v):true;
     const sp=document.createElement('span');
-    sp.textContent=v||'（空白）';
-    sp.title=v;
+    sp.textContent=v||'（空白）';sp.title=v;
     item.appendChild(cb);item.appendChild(sp);
     container.appendChild(item);
   });
@@ -413,73 +494,68 @@ function selectAllVals(all){
 }
 function applyColFlt(){
   if(!cfpCol)return;
+  const filters=cfpForSheet==='sr'?srColFilters:colFilters;
+  const srcData=cfpForSheet==='sr'?SR_D:D;
   if(cfpTab==='list'){
     const sel=new Set();
-    document.querySelectorAll('#cfpVals input[type=checkbox]').forEach(cb=>{
-      if(cb.checked)sel.add(cb.value);
-    });
-    const allVals=[...new Set(D.map(r=>r.t[cfpCol]||''))];
-    if(sel.size===allVals.length){
-      // 全選択 = フィルターなし
-      delete colFilters[cfpCol];
-    } else {
-      colFilters[cfpCol]={type:'list',selected:sel};
-    }
+    document.querySelectorAll('#cfpVals input[type=checkbox]').forEach(cb=>{if(cb.checked)sel.add(cb.value);});
+    const allVals=[...new Set(srcData.map(r=>r.t[cfpCol]||''))];
+    if(sel.size===allVals.length){delete filters[cfpCol];}
+    else{filters[cfpCol]={type:'list',selected:sel};}
   } else {
     const op1=document.getElementById('cfpOp1').value;
     const val1=document.getElementById('cfpVal1').value.trim();
     const op2=document.getElementById('cfpOp2').value;
     const val2=document.getElementById('cfpVal2').value.trim();
-    if(!op1||(op1!=='blank'&&op1!=='notblank'&&!val1)){
-      delete colFilters[cfpCol];
-    } else {
-      colFilters[cfpCol]={type:'text',logic:cfpLogic,op1,val1,op2,val2};
-    }
+    if(!op1||(op1!=='blank'&&op1!=='notblank'&&!val1)){delete filters[cfpCol];}
+    else{filters[cfpCol]={type:'text',logic:cfpLogic,op1,val1,op2,val2};}
   }
   updateColFltUI();
   closeCfp();
-  applyF();
+  if(cfpForSheet==='sr'){srApplyF();}else{applyF();}
 }
 function resetColFlt(){
   if(cfpCol){
-    delete colFilters[cfpCol];
+    const filters=cfpForSheet==='sr'?srColFilters:colFilters;
+    delete filters[cfpCol];
     updateColFltUI();
     closeCfp();
-    applyF();
+    if(cfpForSheet==='sr'){srApplyF();}else{applyF();}
   }
 }
 function updateColFltUI(){
-  // ヘッダー列のハイライト更新
+  // 統合データ列ハイライト
   TC.forEach((c,i)=>{
-    const th=document.querySelector('#th-'+i);
-    if(th){
-      th.classList.toggle('col-filtered',!!colFilters[c]);
-      const fb=th.querySelector('.flt-btn');
-      if(fb)fb.classList.toggle('active',!!colFilters[c]);
-    }
+    const th=document.querySelector('#mth-'+i);
+    if(th){th.classList.toggle('col-filtered',!!colFilters[c]);const fb=th.querySelector('.flt-btn');if(fb)fb.classList.toggle('active',!!colFilters[c]);}
   });
-  // クリアボタン表示
-  const hasAny=Object.keys(colFilters).length>0;
-  document.getElementById('clrColFlt').classList.toggle('vis',hasAny);
+  const hasMain=Object.keys(colFilters).length>0;
+  document.getElementById('clrColFlt').classList.toggle('vis',hasMain);
+  // SR列ハイライト
+  SR_TC.forEach((c,i)=>{
+    const th=document.querySelector('#srth-'+i);
+    if(th){th.classList.toggle('col-filtered',!!srColFilters[c]);const fb=th.querySelector('.flt-btn');if(fb)fb.classList.toggle('active',!!srColFilters[c]);}
+  });
+  const hasSR=Object.keys(srColFilters).length>0;
+  document.getElementById('clrSRColFlt').classList.toggle('vis',hasSR);
 }
 function matchOp(op,cellVal,query){
   const c=cellVal.toLowerCase(),q=query.toLowerCase();
   switch(op){
-    case 'contains': return c.includes(q);
-    case 'notcontains': return !c.includes(q);
-    case 'equals': return c===q;
-    case 'notequals': return c!==q;
-    case 'startswith': return c.startsWith(q);
-    case 'endswith': return c.endsWith(q);
-    case 'blank': return cellVal.trim()==='';
-    case 'notblank': return cellVal.trim()!=='';
-    default: return true;
+    case 'contains':return c.includes(q);
+    case 'notcontains':return!c.includes(q);
+    case 'equals':return c===q;
+    case 'notequals':return c!==q;
+    case 'startswith':return c.startsWith(q);
+    case 'endswith':return c.endsWith(q);
+    case 'blank':return cellVal.trim()==='';
+    case 'notblank':return cellVal.trim()!=='';
+    default:return true;
   }
 }
-function matchColFilter(cf, cellVal){
+function matchColFilter(cf,cellVal){
   if(!cf)return true;
   if(cf.type==='list')return cf.selected.has(cellVal);
-  // text type
   const v=cellVal||'';
   const r1=(cf.op1==='blank'||cf.op1==='notblank')?matchOp(cf.op1,v,''):matchOp(cf.op1,v,cf.val1);
   if(!cf.op2)return r1;
@@ -487,6 +563,7 @@ function matchColFilter(cf, cellVal){
   return cf.logic==='AND'?r1&&r2:r1||r2;
 }
 
+// ========== 統合データ フィルター・レンダリング ==========
 function applyF(){
   const q=document.getElementById('srch').value.toLowerCase().trim();
   const kb=document.getElementById('kFlt').value;
@@ -495,10 +572,7 @@ function applyF(){
     if(q&&!r.s.includes(q))return false;
     if(kb&&r.t[KC]!==kb)return false;
     if(st&&r.t[SC]!==st)return false;
-    // 列フィルター適用
-    for(const [col,cf] of Object.entries(colFilters)){
-      if(!matchColFilter(cf,r.t[col]||''))return false;
-    }
+    for(const[col,cf]of Object.entries(colFilters)){if(!matchColFilter(cf,r.t[col]||''))return false;}
     return true;
   });
   if(sc)fil.sort((a,b)=>{const va=a.t[sc]||'',vb=b.t[sc]||'';return sa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
@@ -517,165 +591,116 @@ function render(){
   const s=(pg-1)*pp,e=Math.min(s+pp,tot);
   document.getElementById('cnt').innerHTML=`表示: <strong>${s+1}–${e}</strong> / 全 <strong>${tot.toLocaleString()}</strong> 件`;
   const tb=document.getElementById('tB');
-  if(!tot){tb.innerHTML='<tr><td colspan="99" class="empty"><div class="ei">🔍</div>条件に一致するデータがありません</td></tr>';renderP(tp);return;}
+  if(!tot){tb.innerHTML='<tr><td colspan="99" class="empty"><div class="ei">🔍</div>条件に一致するデータがありません</td></tr>';renderP('pag',tp,pg,pp,n=>{pg=n;render()},v=>{pp=v;pg=1;render()});return;}
   const si=TC.indexOf(SC),ni=TC.indexOf('届出番号'),di=TC.indexOf('届出日');
   tb.innerHTML=fil.slice(s,e).map((r,ri)=>{
     const tds=TC.map((col,ci)=>{
       const v=r.t[col]||'';
       if(ci===si)return`<td>${bdg(v)}</td>`;
-      if(ci===ni)return`<td class="tn">${v}</td>`;
-      if(ci===di)return`<td class="td">${v}</td>`;
+      if(col==='届出番号')return`<td class="tn">${v}</td>`;
+      if(col==='届出日'||col==='撤回日'||col==='変更日')return`<td class="td">${v}</td>`;
       return`<td><span class="tc" title="${v.replace(/"/g,'&quot;')}">${v}</span></td>`;
     }).join('');
     return`<tr data-i="${s+ri}">${tds}</tr>`;
   }).join('');
   tb.querySelectorAll('tr[data-i]').forEach(tr=>tr.onclick=()=>openM(+tr.dataset.i));
-  renderP(tp);
+  renderP('pag',tp,pg,pp,n=>{pg=n;render()},v=>{pp=v;pg=1;render()});
 }
-function renderP(tp){
-  const pag=document.getElementById('pag');
-  const mk=(l,p,d,a)=>{const b=document.createElement('button');b.className='pb'+(a?' act':'');b.textContent=l;b.disabled=d;if(!d&&!a)b.onclick=()=>{pg=p;render();};return b;};
+
+// ========== SR情報 フィルター・レンダリング ==========
+function srApplyF(){
+  const q=document.getElementById('srSrch').value.toLowerCase().trim();
+  srFil=SR_D.filter(r=>{
+    if(q&&!r.s.includes(q))return false;
+    for(const[col,cf]of Object.entries(srColFilters)){if(!matchColFilter(cf,r.t[col]||''))return false;}
+    return true;
+  });
+  if(srSc)srFil.sort((a,b)=>{const va=a.t[srSc]||'',vb=b.t[srSc]||'';return srSa?va.localeCompare(vb,'ja'):vb.localeCompare(va,'ja');});
+  srPg=1;srRender();
+}
+function srRender(){
+  const tot=srFil.length,tp=Math.max(1,Math.ceil(tot/srPp));
+  if(srPg>tp)srPg=tp;
+  const s=(srPg-1)*srPp,e=Math.min(s+srPp,tot);
+  document.getElementById('srCnt').innerHTML=`表示: <strong>${s+1}–${e}</strong> / 全 <strong>${tot.toLocaleString()}</strong> 件`;
+  const tb=document.getElementById('srTB');
+  if(!tot){tb.innerHTML='<tr><td colspan="99" class="empty"><div class="ei">🔍</div>条件に一致するデータがありません</td></tr>';renderP('srPag',tp,srPg,srPp,n=>{srPg=n;srRender()},v=>{srPp=v;srPg=1;srRender()});return;}
+  tb.innerHTML=srFil.slice(s,e).map(r=>{
+    const tds=SR_TC.map(col=>{
+      const v=r.t[col]||'';
+      if(col==='届出番号')return`<td class="tn">${v}</td>`;
+      if(/^https?:\/\//.test(v))return`<td><a href="${v}" target="_blank" rel="noopener" style="color:var(--pri)">${v}</a></td>`;
+      return`<td><span class="tc" title="${v.replace(/"/g,'&quot;')}">${v}</span></td>`;
+    }).join('');
+    return`<tr>${tds}</tr>`;
+  }).join('');
+  renderP('srPag',tp,srPg,srPp,n=>{srPg=n;srRender()},v=>{srPp=v;srPg=1;srRender()});
+}
+
+// ========== ページング（共通） ==========
+function renderP(pagId,tp,curPg,curPp,onPage,onPpChange){
+  const pag=document.getElementById(pagId);
+  const mk=(l,p,d,a)=>{const b=document.createElement('button');b.className='pb'+(a?' act':'');b.textContent=l;b.disabled=d;if(!d&&!a)b.onclick=()=>onPage(p);return b;};
   const btns=document.createElement('div');btns.className='pbtns';
-  btns.appendChild(mk('«',1,pg===1,false));btns.appendChild(mk('‹',pg-1,pg===1,false));
+  btns.appendChild(mk('«',1,curPg===1,false));btns.appendChild(mk('‹',curPg-1,curPg===1,false));
   let ps=[];
   if(tp<=7){for(let i=1;i<=tp;i++)ps.push(i);}
-  else{ps=[1];let a=Math.max(2,pg-2),b=Math.min(tp-1,pg+2);if(a>2)ps.push('…');for(let i=a;i<=b;i++)ps.push(i);if(b<tp-1)ps.push('…');ps.push(tp);}
-  ps.forEach(p=>{if(p==='…'){const sp=document.createElement('span');sp.textContent='…';sp.style.cssText='padding:4px 3px;color:var(--muted)';btns.appendChild(sp);}else btns.appendChild(mk(p,p,false,p===pg));});
-  btns.appendChild(mk('›',pg+1,pg===tp,false));btns.appendChild(mk('»',tp,pg===tp,false));
+  else{ps=[1];let a=Math.max(2,curPg-2),b=Math.min(tp-1,curPg+2);if(a>2)ps.push('…');for(let i=a;i<=b;i++)ps.push(i);if(b<tp-1)ps.push('…');ps.push(tp);}
+  ps.forEach(p=>{if(p==='…'){const sp=document.createElement('span');sp.textContent='…';sp.style.cssText='padding:4px 3px;color:var(--muted)';btns.appendChild(sp);}else btns.appendChild(mk(p,p,false,p===curPg));});
+  btns.appendChild(mk('›',curPg+1,curPg===tp,false));btns.appendChild(mk('»',tp,curPg===tp,false));
   const pw=document.createElement('div');pw.className='ppw';pw.innerHTML='表示件数:';
   const sl=document.createElement('select');sl.className='pps';
-  [25,50,100,200].forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n+'件';if(n===pp)o.selected=true;sl.appendChild(o);});
-  sl.onchange=()=>{pp=+sl.value;pg=1;render();};
+  [25,50,100,200].forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n+'件';if(n===curPp)o.selected=true;sl.appendChild(o);});
+  sl.onchange=()=>onPpChange(+sl.value);
   pw.appendChild(sl);
   pag.innerHTML='';pag.appendChild(btns);pag.appendChild(pw);
 }
-// ===== 詳細モーダル セクション定義（新届出DBフォーマット対応）=====
-const SECS=[
-  {t:'基本情報',k:[
-    '届出番号','届出日','変更日','撤回日',
-    '法人番号','法人名','住所','主たる事務所の住所','代表者氏名',
-    '商品名','名称'
-  ]},
-  {t:'成分・機能性',k:[
-    '機能性関与成分名','機能性関与成分名.1','含有量',
-    '表示しようとする機能性',
-    '食品の区分',
-    '当該製品が想定する主な対象者（疾病に罹患している者、未成年者、妊産婦（妊娠を計画している者を含む。）及び授乳婦を除く。）',
-    '一日当たりの摂取目安量','摂取の方法と兼ねる',
-    '（２）エキス等を機能性関与成分とする場合、指標成分',
-    '機能性関与成分はエキスである'
-  ]},
-  {t:'販売・撤回状況',k:[
-    '販売開始予定日',
-    '（届出日から60日経過した場合）販売状況',
-    '撤回届出の場合','届出撤回の事由',
-    '機能性表示食品（再届出）である場合','既届出食品の届出番号','同一性を失わない理由'
-  ]},
-  {t:'問合せ・URL',k:[
-    '消費者対応部局（お客様相談室等）の連絡先（電話番号等）',
-    '情報開示するウェブサイトのＵＲＬ',
-    '届出事項及び開示情報についての問合せ担当部局','電話',
-    '健康被害の情報の対応窓口部署名等','電話番号','電子メールアドレス',
-    '上記手段以外の連絡先','連絡対応日時（曜日、時間等）',
-    '機能性表示食品_消費者等向け_様式Ⅰ.届出食品の科学的根拠等に関する基本情報画面URL'
-  ]},
-  {t:'安全性評価',k:[
-    '当該製品の安全性に関する届出者の評価',
-    '喫食実績の有無','最終製品の喫食実績で評価が十分',
-    '類似する食品の喫食実績で評価が十分','喫食実績なし又は評価が不十分',
-    '相互作用の有無','相互作用の有無.1'
-  ]},
-  {t:'機能性評価',k:[
-    '当該製品の機能性に関する届出者の評価',
-    '最終製品を用いたヒト試験（ヒトを対象とした試験）により、機能性を評価している。',
-    '（臨床試験公開データベースに登録をしている場合）登録コード',
-    '最終製品に関する研究レビュー（一定のルールに基づいた文献調査）で、機能性を評価している。',
-    '最終製品ではなく、機能性関与成分に関する研究レビューで、機能性を評価している。',
-    '表示しようとする機能性の科学的根拠として用いた研究レビューは、査読付き論文として公表されている。',
-    'PRISMA声明に準拠した形式で記載されている','PRISMA2020判断'
-  ]},
-  {t:'摂取情報',k:[
-    '一日当たりの摂取目安量','摂取の方法','摂取をする上での注意事項',
-    '保存の方法','（１） 機能性関与成分を含む原材料名（届出食品が生鮮食品の場合は除く）',
-    '調理又は保存の方法に関し特に注意を必要とするものにあっては当該注意事項',
-    '調理又は保存の方法に関し特に注意を必要とするものにあっては当該注意事項(自由記入欄)',
-    '健康増進法施行規則第11条第２項で定める栄養素の過剰な摂取につながらないとする理由'
-  ]},
-  {t:'製造情報',k:[
-    '製造者氏名又は製造所名①','所在地①','中間製品①','最終製品①','製造又は加工の基準①',
-    '製造者氏名又は製造所名②','所在地②','中間製品②','最終製品②','製造又は加工の基準②',
-    '製造者氏名又は製造所名③','所在地③','中間製品③','最終製品③','製造又は加工の基準③',
-    '（加工食品の場合は、製造者氏名又は製造所名及び所在地、生鮮食品の場合は、生産・採取・漁獲等を行う者の氏名又は名称及び所在地）',
-    '生産・製造及び品質管理に関する情報'
-  ]},
-  {t:'点検・変更履歴',k:[
-    '変更履歴（2025年3月31日以前）','変更履歴（2025年4月1日以降）',
-    '前回の自己点検報告月'
-  ]}
-];
 
-/* ===== SR情報セクション描画 ===== */
+// ========== 詳細モーダル ==========
+const SECS=[
+  {t:'基本情報',k:['届出番号','届出日','変更日','撤回日','法人番号','法人名','住所','主たる事務所の住所','代表者氏名','商品名','名称']},
+  {t:'成分・機能性',k:['機能性関与成分名','機能性関与成分名.1','含有量','表示しようとする機能性','食品の区分','当該製品が想定する主な対象者（疾病に罹患している者、未成年者、妊産婦（妊娠を計画している者を含む。）及び授乳婦を除く。）','一日当たりの摂取目安量','摂取の方法と兼ねる','（２）エキス等を機能性関与成分とする場合、指標成分','機能性関与成分はエキスである']},
+  {t:'販売・撤回状況',k:['販売開始予定日','（届出日から60日経過した場合）販売状況','撤回届出の場合','届出撤回の事由','機能性表示食品（再届出）である場合','既届出食品の届出番号','同一性を失わない理由']},
+  {t:'問合せ・URL',k:['消費者対応部局（お客様相談室等）の連絡先（電話番号等）','情報開示するウェブサイトのＵＲＬ','届出事項及び開示情報についての問合せ担当部局','電話','健康被害の情報の対応窓口部署名等','電話番号','電子メールアドレス','上記手段以外の連絡先','連絡対応日時（曜日、時間等）','機能性表示食品_消費者等向け_様式Ⅰ.届出食品の科学的根拠等に関する基本情報画面URL']},
+  {t:'安全性評価',k:['当該製品の安全性に関する届出者の評価','喫食実績の有無','最終製品の喫食実績で評価が十分','類似する食品の喫食実績で評価が十分','喫食実績なし又は評価が不十分','相互作用の有無','相互作用の有無.1']},
+  {t:'機能性評価',k:['当該製品の機能性に関する届出者の評価','最終製品を用いたヒト試験（ヒトを対象とした試験）により、機能性を評価している。','（臨床試験公開データベースに登録をしている場合）登録コード','最終製品に関する研究レビュー（一定のルールに基づいた文献調査）で、機能性を評価している。','最終製品ではなく、機能性関与成分に関する研究レビューで、機能性を評価している。','表示しようとする機能性の科学的根拠として用いた研究レビューは、査読付き論文として公表されている。','PRISMA声明に準拠した形式で記載されている','PRISMA2020判断']},
+  {t:'摂取情報',k:['一日当たりの摂取目安量','摂取の方法','摂取をする上での注意事項','保存の方法','（１） 機能性関与成分を含む原材料名（届出食品が生鮮食品の場合は除く）','調理又は保存の方法に関し特に注意を必要とするものにあっては当該注意事項','調理又は保存の方法に関し特に注意を必要とするものにあっては当該注意事項(自由記入欄)','健康増進法施行規則第11条第２項で定める栄養素の過剰な摂取につながらないとする理由']},
+  {t:'製造情報',k:['製造者氏名又は製造所名①','所在地①','中間製品①','最終製品①','製造又は加工の基準①','製造者氏名又は製造所名②','所在地②','中間製品②','最終製品②','製造又は加工の基準②','製造者氏名又は製造所名③','所在地③','中間製品③','最終製品③','製造又は加工の基準③','（加工食品の場合は、製造者氏名又は製造所名及び所在地、生鮮食品の場合は、生産・採取・漁獲等を行う者の氏名又は名称及び所在地）','生産・製造及び品質管理に関する情報']},
+  {t:'点検・変更履歴',k:['変更履歴（2025年3月31日以前）','変更履歴（2025年4月1日以降）','前回の自己点検報告月']}
+];
 function buildSRSection(srRows){
   if(!srRows||srRows.length===0)return null;
-  const sec=document.createElement('div');
-  sec.className='msec';
+  const sec=document.createElement('div');sec.className='msec';
   sec.innerHTML='<div class="mst">SR情報抽出</div>';
-  // SR行のすべてのキーを収集
-  const allKeys=[];
-  const keySet=new Set();
-  srRows.forEach(row=>{
-    Object.keys(row).forEach(k=>{
-      if(!keySet.has(k)){keySet.add(k);allKeys.push(k);}
-    });
-  });
-  const countEl=document.createElement('div');
-  countEl.className='sr-count';
+  const allKeys=[];const keySet=new Set();
+  srRows.forEach(row=>{Object.keys(row).forEach(k=>{if(!keySet.has(k)){keySet.add(k);allKeys.push(k);}});});
+  const countEl=document.createElement('div');countEl.className='sr-count';
   countEl.textContent=`${srRows.length}件のSR情報`;
   sec.appendChild(countEl);
-  const wrapper=document.createElement('div');
-  wrapper.style.overflowX='auto';
-  const tbl=document.createElement('table');
-  tbl.className='sr-table';
-  // ヘッダー行
-  const thead=document.createElement('thead');
-  const headerRow=document.createElement('tr');
-  const numTh=document.createElement('th');
-  numTh.textContent='#';
-  numTh.style.width='30px';
+  const wrapper=document.createElement('div');wrapper.style.overflowX='auto';
+  const tbl=document.createElement('table');tbl.className='sr-table';
+  const thead=document.createElement('thead');const headerRow=document.createElement('tr');
+  const numTh=document.createElement('th');numTh.textContent='#';numTh.style.width='30px';
   headerRow.appendChild(numTh);
-  allKeys.forEach(k=>{
-    const th=document.createElement('th');
-    th.textContent=k;
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  tbl.appendChild(thead);
-  // データ行
+  allKeys.forEach(k=>{const th=document.createElement('th');th.textContent=k;headerRow.appendChild(th);});
+  thead.appendChild(headerRow);tbl.appendChild(thead);
   const tbody=document.createElement('tbody');
   srRows.forEach((row,idx)=>{
     const tr=document.createElement('tr');
-    const numTd=document.createElement('td');
-    numTd.textContent=idx+1;
+    const numTd=document.createElement('td');numTd.textContent=idx+1;
     numTd.style.cssText='text-align:center;color:var(--muted);font-weight:600;white-space:nowrap';
     tr.appendChild(numTd);
     allKeys.forEach(k=>{
-      const td=document.createElement('td');
-      const v=row[k]||'';
-      if(/^https?:\/\//.test(v)){
-        td.innerHTML=`<a href="${v}" target="_blank" rel="noopener">${v}</a>`;
-      } else {
-        td.textContent=v;
-      }
+      const td=document.createElement('td');const v=row[k]||'';
+      if(/^https?:\/\//.test(v)){td.innerHTML=`<a href="${v}" target="_blank" rel="noopener">${v}</a>`;}
+      else{td.textContent=v;}
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
-  tbl.appendChild(tbody);
-  wrapper.appendChild(tbl);
-  sec.appendChild(wrapper);
+  tbl.appendChild(tbody);wrapper.appendChild(tbl);sec.appendChild(wrapper);
   return sec;
 }
-
 function openM(idx){
   const r=fil[idx];if(!r)return;
   const d=r.d;
@@ -699,10 +724,8 @@ function openM(idx){
     others.forEach(([k,v])=>{if(/^https?:\/\//.test(v))v=`<a href="${v}" target="_blank" rel="noopener">${v}</a>`;grid.innerHTML+=`<div class="mk">${k}</div><div class="mv">${v}</div>`;});
     sec.appendChild(grid);body.appendChild(sec);
   }
-  // SR情報セクションを追加
-  if(HAS_SR && r.sr && r.sr.length>0){
-    const srSec=buildSRSection(r.sr);
-    if(srSec)body.appendChild(srSec);
+  if(HAS_SR&&r.sr&&r.sr.length>0){
+    const srSec=buildSRSection(r.sr);if(srSec)body.appendChild(srSec);
   }
   document.getElementById('ov').classList.add('act');body.scrollTop=0;
 }
@@ -711,24 +734,28 @@ document.getElementById('mC').onclick=closeM;
 document.getElementById('mCB').onclick=closeM;
 document.getElementById('ov').onclick=e=>{if(e.target===e.currentTarget)closeM();};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeM();closeCfp();}});
-// ポップアップ外クリックで閉じる
 document.addEventListener('mousedown',e=>{
   const pop=document.getElementById('colFltPop');
-  if(pop.classList.contains('open')&&!pop.contains(e.target)&&!e.target.classList.contains('flt-btn')){
-    closeCfp();
-  }
+  if(pop.classList.contains('open')&&!pop.contains(e.target)&&!e.target.classList.contains('flt-btn'))closeCfp();
 });
 // クリアボタン
-document.getElementById('clrColFlt').onclick=()=>{
-  Object.keys(colFilters).forEach(k=>delete colFilters[k]);
-  updateColFltUI();
-  applyF();
-};
+document.getElementById('clrColFlt').onclick=()=>{Object.keys(colFilters).forEach(k=>delete colFilters[k]);updateColFltUI();applyF();};
+document.getElementById('clrSRColFlt').onclick=()=>{Object.keys(srColFilters).forEach(k=>delete srColFilters[k]);updateColFltUI();srApplyF();};
+// 検索イベント
 let st;
 document.getElementById('srch').addEventListener('input',()=>{clearTimeout(st);st=setTimeout(applyF,200);});
 document.getElementById('kFlt').onchange=applyF;
 document.getElementById('sFlt').onchange=applyF;
-buildH();applyF();
+let srSt;
+document.getElementById('srSrch').addEventListener('input',()=>{clearTimeout(srSt);srSt=setTimeout(srApplyF,200);});
+// ========== 初期化 ==========
+buildH();
+applyF();
+if(HAS_SR&&SR_D.length>0){
+  document.getElementById('tabSR').style.display='';
+  buildSRH();
+  srApplyF();
+}
 </script>
 </body>
 </html>

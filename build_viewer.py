@@ -56,7 +56,7 @@ try:
     sheet_names = xls.sheet_names
     print(f"  シート一覧: {sheet_names}")
 
-    # 統合データシートを探す（旧フォーマット: 1枚目シート にも対応）
+    # 統合データシートを探す（旧フォーマット: 1枚目シートにも対応）
     MAIN_SHEET = None
     for cand in ["統合データ", "届出情報"]:
         if cand in sheet_names:
@@ -84,19 +84,10 @@ except Exception as e:
 df = df.fillna("")
 all_cols = list(df.columns)
 
-# ---- テーブル表示列の設定 ----
-TABLE_COLS_PREFER = [
-    "届出番号",
-    "届出日",
-    "法人名",
-    "商品名",
-    "機能性関与成分名",
-    "表示しようとする機能性",
-    "食品の区分",
-    "（届出日から60日経過した場合）販売状況",
-    "販売開始予定日",
-]
+# ---- 統合データ: 全列をテーブル表示 ----
+table_cols_exist = all_cols
 
+# 表示ラベル（長い列名を短縮表示するためのマッピング）
 COL_LABELS = {
     "届出番号": "届出番号",
     "届出日": "届出日",
@@ -113,11 +104,6 @@ COL_LABELS = {
     "当該製品が想定する主な対象者（疾病に罹患している者、未成年者、妊産婦（妊娠を計画している者を含む。）及び授乳婦を除く。）": "想定対象者",
     "情報開示するウェブサイトのＵＲＬ": "WebサイトURL",
 }
-
-table_cols_exist = [c for c in TABLE_COLS_PREFER if c in all_cols]
-if len(table_cols_exist) < 3:
-    table_cols_exist = all_cols[:10]
-    print("注意: 想定されている列名が見つかりませんでした。先頭10列を使用します。")
 
 table_cols_labels = [COL_LABELS.get(c, c) for c in table_cols_exist]
 
@@ -147,6 +133,16 @@ if df_sr is not None and "届出番号" in df_sr.columns:
         if rows:
             sr_map[str(nonum)] = rows
 
+# ---- SR一覧テーブル用データ（フラット化）----
+sr_table_records = []
+sr_table_cols = []
+if df_sr is not None:
+    sr_table_cols = list(df_sr.columns)
+    for _, row in df_sr.iterrows():
+        rec = {c: str(row[c]) for c in sr_table_cols}
+        search_text = " ".join(str(row[c]) for c in sr_table_cols).lower()
+        sr_table_records.append({"t": rec, "s": search_text})
+
 # ---- JSONデータ変換 ----
 print("JSONデータに変換中…")
 search_cols = [
@@ -175,6 +171,8 @@ for _, row in df.iterrows():
 
 json_data = json.dumps(records, ensure_ascii=False)
 table_cols_json = json.dumps(table_cols_labels, ensure_ascii=False)
+sr_records_json = json.dumps(sr_table_records, ensure_ascii=False)
+sr_cols_json = json.dumps(sr_table_cols, ensure_ascii=False)
 kubun_opts = "\n".join(
     f'<option value="{v}">{v}</option>' for v in kubun_values
 )
@@ -209,6 +207,8 @@ html = (
     .replace("{{STATUS_OPTIONS}}", status_opts)
     .replace("{{ALL_DATA_JSON}}", json_data)
     .replace("{{TABLE_COLS_JSON}}", table_cols_json)
+    .replace("{{SR_RECORDS_JSON}}", sr_records_json)
+    .replace("{{SR_COLS_JSON}}", sr_cols_json)
     .replace("{{KUBUN_LABEL}}", kubun_label)
     .replace("{{STATUS_LABEL}}", status_label)
     .replace("{{HAS_SR}}", has_sr_json)
