@@ -64,6 +64,7 @@ df = df.fillna("")
 all_cols = list(df.columns)
 
 # ---- テーブル表示列の設定 ----
+# 新フォーマット（2025年4月以降）対応
 TABLE_COLS_PREFER = [
     "届出番号",
     "届出日",
@@ -80,6 +81,8 @@ TABLE_COLS_PREFER = [
 COL_LABELS = {
     "届出番号": "届出番号",
     "届出日": "届出日",
+    "撤回日": "撤回日",
+    "変更日": "変更日",
     "法人名": "法人名",
     "商品名": "商品名",
     "名称": "名称",
@@ -88,6 +91,8 @@ COL_LABELS = {
     "食品の区分": "食品区分",
     "（届出日から60日経過した場合）販売状況": "販売状況",
     "販売開始予定日": "販売開始予定日",
+    "当該製品が想定する主な対象者（疾病に罹患している者、未成年者、妊産婦（妊娠を計画している者を含む。）及び授乳婦を除く。）": "想定対象者",
+    "情報開示するウェブサイトのＵＲＬ": "WebサイトURL",
 }
 
 table_cols_exist = [c for c in TABLE_COLS_PREFER if c in all_cols]
@@ -113,7 +118,14 @@ status_values = (
 
 # ---- JSONデータ変換 ----
 print("JSONデータに変換中…")
-search_cols = ["商品名", "法人名", "機能性関与成分名", "表示しようとする機能性", "届出番号"]
+search_cols = [
+    "商品名",
+    "法人名",
+    "機能性関与成分名",
+    "表示しようとする機能性",
+    "届出番号",
+    "名称",
+]
 records = []
 for _, row in df.iterrows():
     table_data = {COL_LABELS.get(c, c): str(row[c]) for c in table_cols_exist}
