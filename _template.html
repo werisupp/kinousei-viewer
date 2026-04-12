@@ -131,6 +131,12 @@ td{padding:8px 12px;vertical-align:top}
 .cfp-cl:hover{background:var(--surface2);color:var(--text)}
 .cfp-rst{background:none;border-color:var(--err);color:var(--err);margin-right:auto}
 .cfp-rst:hover{background:var(--err-bg)}
+/* SR情報テーブル */
+.sr-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.sr-table th{background:var(--surface2);padding:6px 8px;text-align:left;font-weight:600;font-size:10px;color:var(--muted);border:1px solid var(--border);white-space:nowrap}
+.sr-table td{padding:6px 8px;border:1px solid var(--border);vertical-align:top;word-break:break-all;line-height:1.5}
+.sr-table tr:nth-child(even) td{background:var(--surface2)}
+.sr-count{font-size:11px;color:var(--muted);margin-bottom:6px}
 /* モーダル */
 .ov{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px;animation:fi .15s ease}
 .ov.act{display:flex}
@@ -273,6 +279,7 @@ const D={{ALL_DATA_JSON}};
 const TC={{TABLE_COLS_JSON}};
 const KC="{{KUBUN_LABEL}}";
 const SC="{{STATUS_LABEL}}";
+const HAS_SR={{HAS_SR}};
 let fil=D.slice(),pg=1,pp=50,sc=null,sa=true;
 // 列フィルター状態 { colName: { type:'text'|'list', logic:'AND'|'OR', op1, val1, op2, val2, selected:Set } }
 const colFilters={};
@@ -606,6 +613,69 @@ const SECS=[
     '前回の自己点検報告月'
   ]}
 ];
+
+/* ===== SR情報セクション描画 ===== */
+function buildSRSection(srRows){
+  if(!srRows||srRows.length===0)return null;
+  const sec=document.createElement('div');
+  sec.className='msec';
+  sec.innerHTML='<div class="mst">SR情報抽出</div>';
+  // SR行のすべてのキーを収集
+  const allKeys=[];
+  const keySet=new Set();
+  srRows.forEach(row=>{
+    Object.keys(row).forEach(k=>{
+      if(!keySet.has(k)){keySet.add(k);allKeys.push(k);}
+    });
+  });
+  const countEl=document.createElement('div');
+  countEl.className='sr-count';
+  countEl.textContent=`${srRows.length}件のSR情報`;
+  sec.appendChild(countEl);
+  const wrapper=document.createElement('div');
+  wrapper.style.overflowX='auto';
+  const tbl=document.createElement('table');
+  tbl.className='sr-table';
+  // ヘッダー行
+  const thead=document.createElement('thead');
+  const headerRow=document.createElement('tr');
+  const numTh=document.createElement('th');
+  numTh.textContent='#';
+  numTh.style.width='30px';
+  headerRow.appendChild(numTh);
+  allKeys.forEach(k=>{
+    const th=document.createElement('th');
+    th.textContent=k;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  tbl.appendChild(thead);
+  // データ行
+  const tbody=document.createElement('tbody');
+  srRows.forEach((row,idx)=>{
+    const tr=document.createElement('tr');
+    const numTd=document.createElement('td');
+    numTd.textContent=idx+1;
+    numTd.style.cssText='text-align:center;color:var(--muted);font-weight:600;white-space:nowrap';
+    tr.appendChild(numTd);
+    allKeys.forEach(k=>{
+      const td=document.createElement('td');
+      const v=row[k]||'';
+      if(/^https?:\/\//.test(v)){
+        td.innerHTML=`<a href="${v}" target="_blank" rel="noopener">${v}</a>`;
+      } else {
+        td.textContent=v;
+      }
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+  wrapper.appendChild(tbl);
+  sec.appendChild(wrapper);
+  return sec;
+}
+
 function openM(idx){
   const r=fil[idx];if(!r)return;
   const d=r.d;
@@ -628,6 +698,11 @@ function openM(idx){
     const grid=document.createElement('div');grid.className='mg';
     others.forEach(([k,v])=>{if(/^https?:\/\//.test(v))v=`<a href="${v}" target="_blank" rel="noopener">${v}</a>`;grid.innerHTML+=`<div class="mk">${k}</div><div class="mv">${v}</div>`;});
     sec.appendChild(grid);body.appendChild(sec);
+  }
+  // SR情報セクションを追加
+  if(HAS_SR && r.sr && r.sr.length>0){
+    const srSec=buildSRSection(r.sr);
+    if(srSec)body.appendChild(srSec);
   }
   document.getElementById('ov').classList.add('act');body.scrollTop=0;
 }
