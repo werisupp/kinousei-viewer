@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 機能性表示食品 ビューワー生成スクリプト
-同じフォルダの .xlsx を読み込み viewer.html を生成してブラウザで開く
+対応フォーマット: 統合データ(114列) + SR情報抽出 シート（2025年4月以降）
 
 使い方:
   Mac:     python3 build_viewer.py
@@ -46,15 +46,36 @@ if not xlsx_files:
     input("Enterで閉じる...")
     sys.exit(1)
 
-# 最終更新日時が最新のファイルを選択
 xlsx_path = sorted(xlsx_files, key=os.path.getmtime, reverse=True)[0]
 print(f"読み込み中: {os.path.basename(xlsx_path)}")
 
 # ---- Excel読み込み ----
 try:
     print("Excelを読み込み中（少し時間がかかります…）")
-    df = pd.read_excel(xlsx_path, sheet_name=0, dtype=str, header=0)
-    print(f"  {len(df):,} 件、{len(df.columns)} 列")
+    xls = pd.ExcelFile(xlsx_path)
+    sheet_names = xls.sheet_names
+    print(f"  シート一覧: {sheet_names}")
+
+    # 統合データシートを探す（旧フォーマット: 1枚目シート にも対応）
+    MAIN_SHEET = None
+    for cand in ["統合データ", "届出情報"]:
+        if cand in sheet_names:
+            MAIN_SHEET = cand
+            break
+    if MAIN_SHEET is None:
+        MAIN_SHEET = sheet_names[0]
+
+    df = pd.read_excel(xls, sheet_name=MAIN_SHEET, dtype=str, header=0)
+    print(f"  [{MAIN_SHEET}] {len(df):,} 件、{len(df.columns)} 列")
+
+    # SR情報抽出シートを探す
+    SR_SHEET = "SR情報抽出" if "SR情報抽出" in sheet_names else None
+    df_sr = None
+    if SR_SHEET:
+        df_sr = pd.read_excel(xls, sheet_name=SR_SHEET, dtype=str, header=0)
+        df_sr = df_sr.fillna("")
+        print(f"  [{SR_SHEET}] {len(df_sr):,} 件、{len(df_sr.columns)} 列")
+
 except Exception as e:
     print(f"ERROR: Excelの読み込みに失敗しました: {e}")
     input("Enterで閉じる...")
@@ -64,13 +85,11 @@ df = df.fillna("")
 all_cols = list(df.columns)
 
 # ---- テーブル表示列の設定 ----
-# 新フォーマット（2025年4月以降）対応
 TABLE_COLS_PREFER = [
     "届出番号",
     "届出日",
     "法人名",
     "商品名",
-    "名称",
     "機能性関与成分名",
     "表示しようとする機能性",
     "食品の区分",
@@ -97,7 +116,6 @@ COL_LABELS = {
 
 table_cols_exist = [c for c in TABLE_COLS_PREFER if c in all_cols]
 if len(table_cols_exist) < 3:
-    # 想定列が見つからない場合は先頭10列を使用
     table_cols_exist = all_cols[:10]
     print("注意: 想定されている列名が見つかりませんでした。先頭10列を使用します。")
 
@@ -116,12 +134,26 @@ status_values = (
     if status_col else []
 )
 
+# ---- SR情報をグルーピング（届出番号をキーに） ----
+sr_map = {}
+if df_sr is not None and "届出番号" in df_sr.columns:
+    sr_cols = [c for c in df_sr.columns if c != "届出番号"]
+    for nonum, grp in df_sr.groupby("届出番号"):
+        rows = []
+        for _, row in grp.iterrows():
+            entry = {c: str(row[c]) for c in sr_cols if str(row.get(c, "")).strip() and str(row.get(c, "")) != "nan"}
+            if entry:
+                rows.append(entry)
+        if rows:
+            sr_map[str(nonum)] = rows
+
 # ---- JSONデータ変換 ----
 print("JSONデータに変換中…")
 search_cols = [
     "商品名",
     "法人名",
     "機能性関与成分名",
+    "機能性関与成分名.1",
     "表示しようとする機能性",
     "届出番号",
     "名称",
@@ -137,7 +169,9 @@ for _, row in df.iterrows():
         for c in all_cols
         if str(row[c]).strip() and str(row[c]) != "nan"
     }
-    records.append({"t": table_data, "s": search_text, "d": detail_data})
+    nonum = str(row.get("届出番号", "")).strip()
+    sr_rows = sr_map.get(nonum, [])
+    records.append({"t": table_data, "s": search_text, "d": detail_data, "sr": sr_rows})
 
 json_data = json.dumps(records, ensure_ascii=False)
 table_cols_json = json.dumps(table_cols_labels, ensure_ascii=False)
@@ -153,6 +187,7 @@ kubun_label = COL_LABELS.get("食品の区分", "食品区分")
 status_label = COL_LABELS.get(
     "（届出日から60日経過した場合）販売状況", "販売状況"
 )
+has_sr_json = "true" if sr_map else "false"
 
 # ---- テンプレート読み込み ----
 tpl_path = os.path.join(script_dir, "_template.html")
@@ -176,6 +211,7 @@ html = (
     .replace("{{TABLE_COLS_JSON}}", table_cols_json)
     .replace("{{KUBUN_LABEL}}", kubun_label)
     .replace("{{STATUS_LABEL}}", status_label)
+    .replace("{{HAS_SR}}", has_sr_json)
 )
 
 out_path = os.path.join(script_dir, "viewer.html")
